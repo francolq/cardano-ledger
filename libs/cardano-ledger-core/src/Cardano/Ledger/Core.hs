@@ -463,6 +463,8 @@ class
 -- > type instance PreviousEra (AllegraEra c) = ShelleyEra c
 type family PreviousEra era = (r :: Type) | r -> era
 
+type family ByronTranslationContext era :: Type
+
 -- | Per-era context used for 'TranslateEra'.
 --
 -- This context will be passed to the translation instances of /all/ types of
