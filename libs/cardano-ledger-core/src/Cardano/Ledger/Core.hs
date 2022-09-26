@@ -23,6 +23,7 @@
 -- > import qualified Cardano.Ledger.Core as Core
 module Cardano.Ledger.Core
   ( -- * Era-changing types
+    ByronTranslationContext,
     EraTx (..),
     EraTxOut (..),
     bootAddrTxOutF,

@@ -116,6 +116,16 @@ emptyGenesisStaking =
       sgsStake = mempty
     }
 
+data ParedDownShelleyGenesis era = ParedDownShelleyGenesis
+  { pdsgSlotLength     :: !NominalDiffTime
+  , pdsgEpochLength    :: !EpochSize
+  , pdsgProtocolParams :: !(ShelleyPParams era)
+  } deriving (Eq, Show, Generic)
+
+deriving instance Era era => NoThunks (ParedDownShelleyGenesis era)
+
+type instance ByronTranslationContext (ShelleyEra c) = ParedDownShelleyGenesis Void
+
 -- | Shelley genesis information
 --
 -- Note that this is needed only for a pure Shelley network, hence it being
