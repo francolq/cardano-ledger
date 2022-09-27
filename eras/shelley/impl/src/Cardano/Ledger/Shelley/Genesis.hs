@@ -27,6 +27,8 @@ module Cardano.Ledger.Shelley.Genesis
   )
 where
 
+import Data.Void (Void)
+
 import Cardano.Binary (FromCBOR (..), ToCBOR (..), encodeListLen)
 import qualified Cardano.Crypto.Hash.Class as Crypto
 import Cardano.Crypto.KES.Class (totalPeriodsKES)
@@ -37,6 +39,7 @@ import Cardano.Ledger.Core
 import Cardano.Ledger.Crypto (HASH, KES)
 import qualified Cardano.Ledger.Crypto as CC (Crypto)
 import Cardano.Ledger.Keys
+import Cardano.Ledger.Shelley.Era (ShelleyEra)
 import Cardano.Ledger.SafeHash (unsafeMakeSafeHash)
 import Cardano.Ledger.Serialization
   ( decodeRecordNamed,

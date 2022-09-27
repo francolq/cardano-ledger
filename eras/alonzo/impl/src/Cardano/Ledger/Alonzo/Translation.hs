@@ -56,6 +56,8 @@ type instance PreviousEra (AlonzoEra c) = MaryEra c
 
 type instance TranslationContext (AlonzoEra c) = AlonzoGenesis
 
+type instance Core.ByronTranslationContext (AlonzoEra c) = ()
+
 instance Crypto c => TranslateEra (AlonzoEra c) NewEpochState where
   translateEra ctxt nes =
     return $

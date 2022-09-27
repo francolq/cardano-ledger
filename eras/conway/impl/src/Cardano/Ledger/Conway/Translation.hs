@@ -63,6 +63,8 @@ type instance PreviousEra (ConwayEra c) = BabbageEra c
 
 type instance TranslationContext (ConwayEra c) = ConwayGenesis c
 
+type instance ByronTranslationContext (ConwayEra c) = ()
+
 instance Crypto c => TranslateEra (ConwayEra c) NewEpochState where
   translateEra ctxt nes =
     pure $

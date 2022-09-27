@@ -27,6 +27,7 @@ import qualified Cardano.Ledger.Shelley.LedgerState as LS
 import Cardano.Ledger.Shelley.Tx (decodeWits)
 import Control.Monad.Except (throwError)
 import Data.Coerce (coerce)
+import Cardano.Ledger.Core (ByronTranslationContext)
 import qualified Data.Map.Strict as Map
 
 --------------------------------------------------------------------------------
@@ -59,6 +60,8 @@ type instance PreviousEra (AllegraEra c) = ShelleyEra c
 -- Note: if context is needed, please coordinate with consensus, who will have
 -- to provide the context in the right place.
 type instance TranslationContext (AllegraEra c) = ()
+
+type instance ByronTranslationContext (AllegraEra c) = ()
 
 instance Crypto c => TranslateEra (AllegraEra c) NewEpochState where
   translateEra ctxt nes =

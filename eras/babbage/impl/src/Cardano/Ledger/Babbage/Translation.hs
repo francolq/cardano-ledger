@@ -61,6 +61,8 @@ type instance PreviousEra (BabbageEra c) = AlonzoEra c
 
 type instance TranslationContext (BabbageEra c) = AlonzoGenesis
 
+type instance Core.ByronTranslationContext (BabbageEra c) = ()
+
 instance
   (Crypto c) =>
   TranslateEra (BabbageEra c) NewEpochState

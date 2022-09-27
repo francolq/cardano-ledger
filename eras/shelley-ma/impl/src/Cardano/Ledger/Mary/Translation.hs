@@ -16,6 +16,7 @@ import Cardano.Binary
   )
 import Cardano.Ledger.Allegra (AllegraEra)
 import Cardano.Ledger.Compactible (Compactible (..))
+import Cardano.Ledger.Core (ByronTranslationContext)
 import Cardano.Ledger.Crypto (Crypto)
 import Cardano.Ledger.Era hiding (Crypto)
 import Cardano.Ledger.Mary (MaryEra)
@@ -53,6 +54,8 @@ type instance PreviousEra (MaryEra c) = AllegraEra c
 -- Note: if context is needed, please coordinate with consensus, who will have
 -- to provide the context in the right place.
 type instance TranslationContext (MaryEra c) = ()
+
+type instance ByronTranslationContext (MaryEra c) = ()
 
 instance Crypto c => TranslateEra (MaryEra c) NewEpochState where
   translateEra ctxt nes =
