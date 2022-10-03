@@ -27,8 +27,6 @@ module Cardano.Ledger.Shelley.Genesis
   )
 where
 
-import Data.Void (Void)
-
 import Cardano.Binary (FromCBOR (..), ToCBOR (..), encodeListLen)
 import qualified Cardano.Crypto.Hash.Class as Crypto
 import Cardano.Crypto.KES.Class (totalPeriodsKES)
@@ -127,7 +125,7 @@ data ParedDownShelleyGenesis era = ParedDownShelleyGenesis
 
 deriving instance Era era => NoThunks (ParedDownShelleyGenesis era)
 
-type instance ByronTranslationContext (ShelleyEra c) = ParedDownShelleyGenesis Void
+type instance ByronTranslationContext (ShelleyEra c) = ParedDownShelleyGenesis (ShelleyEra c)
 
 -- | Shelley genesis information
 --
