@@ -513,6 +513,9 @@ decodeRecordSum name decoder = do
 --   the previous one, to enfore these are sorted the correct way.
 --   See: https://tools.ietf.org/html/rfc7049#section-3.9
 --   "[..]The keys in every map must be sorted lowest value to highest.[...]"
+--
+-- In other words this decoder enforces strict monotonically increasing order on keys. It
+-- also uses exact map length encoding.
 decodeMapSkel ::
   forall k m v s.
   Ord k =>
