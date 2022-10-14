@@ -127,16 +127,9 @@ spec =
         roundTripSpec @Prim.ByteArray version cborTrip
         roundTripSpec @ByteArray version cborTrip
         roundTripSpec @SlicedByteArray version cborTrip
-        let maybeNullTrip = Trip (encodeNullMaybe toCBOR) (decodeNullMaybe fromCBOR)
+        let maybeNullTrip = mkTrip (encodeNullMaybe toCBOR) (decodeNullMaybe fromCBOR)
         roundTripSpec @(Maybe Integer) version maybeNullTrip
         describe "Crypto" $ do
-          describe "Hash" $ do
-            roundTripSpec @(Hash Blake2b_224 ()) version cborTrip
-            roundTripSpec @(Hash Blake2b_256 ()) version cborTrip
-            roundTripSpec @(Hash SHA256 ()) version cborTrip
-            roundTripSpec @(Hash SHA3_256 ()) version cborTrip
-            roundTripSpec @(Hash Keccak256 ()) version cborTrip
-            roundTripSpec @(Hash ShortHash ()) version cborTrip
           describe "DSIGN" $ do
             describe "Ed25519" $ do
               roundTripSpec @(SignKeyDSIGN Ed25519DSIGN) version cborTrip
@@ -226,29 +219,57 @@ spec =
               roundTripSpec @(SignKeyKES (Sum7KES Ed25519DSIGN Blake2b_256)) version cborTrip
               roundTripSpec @(VerKeyKES (Sum7KES Ed25519DSIGN Blake2b_256)) version cborTrip
               roundTripSpec @(SigKES (Sum7KES Ed25519DSIGN Blake2b_256)) version cborTrip
+            -- below we also test some tuple roundtripping as well as KES
             describe "Simple" $ do
-              roundTripSpec @(SignKeyKES (SimpleKES Ed25519DSIGN 1)) version cborTrip
-              roundTripSpec @(VerKeyKES (SimpleKES Ed25519DSIGN 1)) version cborTrip
-              roundTripSpec @(SigKES (SimpleKES Ed25519DSIGN 1)) version cborTrip
-              roundTripSpec @(SignKeyKES (SimpleKES Ed25519DSIGN 2)) version cborTrip
-              roundTripSpec @(VerKeyKES (SimpleKES Ed25519DSIGN 2)) version cborTrip
-              roundTripSpec @(SigKES (SimpleKES Ed25519DSIGN 2)) version cborTrip
-              roundTripSpec @(SignKeyKES (SimpleKES Ed25519DSIGN 3)) version cborTrip
-              roundTripSpec @(VerKeyKES (SimpleKES Ed25519DSIGN 3)) version cborTrip
-              roundTripSpec @(SigKES (SimpleKES Ed25519DSIGN 3)) version cborTrip
-              roundTripSpec @(SignKeyKES (SimpleKES Ed25519DSIGN 4)) version cborTrip
-              roundTripSpec @(VerKeyKES (SimpleKES Ed25519DSIGN 4)) version cborTrip
-              roundTripSpec @(SigKES (SimpleKES Ed25519DSIGN 4)) version cborTrip
-              roundTripSpec @(SignKeyKES (SimpleKES Ed25519DSIGN 5)) version cborTrip
-              roundTripSpec @(VerKeyKES (SimpleKES Ed25519DSIGN 5)) version cborTrip
-              roundTripSpec @(SigKES (SimpleKES Ed25519DSIGN 5)) version cborTrip
-              roundTripSpec @(SignKeyKES (SimpleKES Ed25519DSIGN 6)) version cborTrip
-              roundTripSpec @(VerKeyKES (SimpleKES Ed25519DSIGN 6)) version cborTrip
-              roundTripSpec @(SigKES (SimpleKES Ed25519DSIGN 6)) version cborTrip
+              roundTripSpec
+                @( SignKeyKES (SimpleKES Ed25519DSIGN 1),
+                   SignKeyKES (SimpleKES Ed25519DSIGN 2),
+                   SignKeyKES (SimpleKES Ed25519DSIGN 3),
+                   SignKeyKES (SimpleKES Ed25519DSIGN 4),
+                   SignKeyKES (SimpleKES Ed25519DSIGN 5),
+                   SignKeyKES (SimpleKES Ed25519DSIGN 6)
+                 )
+                version
+                cborTrip
               roundTripSpec @(SignKeyKES (SimpleKES Ed25519DSIGN 7)) version cborTrip
-              roundTripSpec @(VerKeyKES (SimpleKES Ed25519DSIGN 7)) version cborTrip
-              roundTripSpec @(SigKES (SimpleKES Ed25519DSIGN 7)) version cborTrip
+              roundTripSpec
+                @( VerKeyKES (SimpleKES Ed25519DSIGN 1),
+                   VerKeyKES (SimpleKES Ed25519DSIGN 2),
+                   VerKeyKES (SimpleKES Ed25519DSIGN 3),
+                   VerKeyKES (SimpleKES Ed25519DSIGN 4),
+                   VerKeyKES (SimpleKES Ed25519DSIGN 5),
+                   VerKeyKES (SimpleKES Ed25519DSIGN 6),
+                   VerKeyKES (SimpleKES Ed25519DSIGN 7)
+                 )
+                version
+                cborTrip
+              roundTripSpec
+                @( SigKES (SimpleKES Ed25519DSIGN 1),
+                   SigKES (SimpleKES Ed25519DSIGN 2),
+                   SigKES (SimpleKES Ed25519DSIGN 3),
+                   SigKES (SimpleKES Ed25519DSIGN 4)
+                 )
+                version
+                cborTrip
+              roundTripSpec
+                @( SigKES (SimpleKES Ed25519DSIGN 5),
+                   SigKES (SimpleKES Ed25519DSIGN 6),
+                   SigKES (SimpleKES Ed25519DSIGN 7)
+                 )
+                version
+                cborTrip
             describe "Mock" $ do
               roundTripSpec @(SignKeyKES (MockKES 7)) version cborTrip
               roundTripSpec @(VerKeyKES (MockKES 7)) version cborTrip
               roundTripSpec @(SigKES (MockKES 7)) version cborTrip
+          describe "Hash" $ do
+            roundTripSpec
+              @( Hash Blake2b_224 (),
+                 Hash Blake2b_256 (),
+                 Hash SHA256 (),
+                 Hash SHA3_256 (),
+                 Hash Keccak256 (),
+                 Hash ShortHash ()
+               )
+              version
+              cborTrip

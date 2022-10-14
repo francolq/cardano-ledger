@@ -6,6 +6,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE NoStarIsType #-}
@@ -71,6 +72,13 @@ import Prelude hiding (decodeFloat)
 
 class Typeable a => FromCBOR a where
   fromCBOR :: Decoder s a
+
+  -- | Validate decoding of a Haskell value, without the need to actually construct
+  -- it. Coule be slightly faster than `fromCBOR`, however it should respect this law:
+  --
+  -- > dropCBOR (proxy :: Proxy a) = () <$ (fromCBOR :: Decoder s a)
+  dropCBOR :: Proxy a -> Decoder s ()
+  dropCBOR _ = () <$ fromCBOR @a
 
   label :: Proxy a -> T.Text
   label = T.pack . show . typeRep
@@ -162,6 +170,8 @@ instance FromCBOR IPv6 where
 instance (Typeable s, FromCBOR a) => FromCBOR (Tagged s a) where
   fromCBOR = Tagged <$> fromCBOR
 
+  dropCBOR _ = dropCBOR (Proxy @a)
+
 --------------------------------------------------------------------------------
 -- Containers
 --------------------------------------------------------------------------------
@@ -172,6 +182,7 @@ instance (FromCBOR a, FromCBOR b) => FromCBOR (a, b) where
     !x <- fromCBOR
     !y <- fromCBOR
     return (x, y)
+  dropCBOR _ = decodeListLenOf 2 <* dropCBOR (Proxy @a) <* dropCBOR (Proxy @b)
 
 instance (FromCBOR a, FromCBOR b, FromCBOR c) => FromCBOR (a, b, c) where
   fromCBOR = do
@@ -180,6 +191,11 @@ instance (FromCBOR a, FromCBOR b, FromCBOR c) => FromCBOR (a, b, c) where
     !y <- fromCBOR
     !z <- fromCBOR
     return (x, y, z)
+  dropCBOR _ =
+    decodeListLenOf 3
+      <* dropCBOR (Proxy @a)
+      <* dropCBOR (Proxy @b)
+      <* dropCBOR (Proxy @c)
 
 instance (FromCBOR a, FromCBOR b, FromCBOR c, FromCBOR d) => FromCBOR (a, b, c, d) where
   fromCBOR = do
@@ -189,6 +205,12 @@ instance (FromCBOR a, FromCBOR b, FromCBOR c, FromCBOR d) => FromCBOR (a, b, c, 
     !c <- fromCBOR
     !d <- fromCBOR
     return (a, b, c, d)
+  dropCBOR _ =
+    decodeListLenOf 4
+      <* dropCBOR (Proxy @a)
+      <* dropCBOR (Proxy @b)
+      <* dropCBOR (Proxy @c)
+      <* dropCBOR (Proxy @d)
 
 instance
   (FromCBOR a, FromCBOR b, FromCBOR c, FromCBOR d, FromCBOR e) =>
@@ -202,6 +224,35 @@ instance
     !d <- fromCBOR
     !e <- fromCBOR
     return (a, b, c, d, e)
+  dropCBOR _ =
+    decodeListLenOf 5
+      <* dropCBOR (Proxy @a)
+      <* dropCBOR (Proxy @b)
+      <* dropCBOR (Proxy @c)
+      <* dropCBOR (Proxy @d)
+      <* dropCBOR (Proxy @e)
+
+instance
+  (FromCBOR a, FromCBOR b, FromCBOR c, FromCBOR d, FromCBOR e, FromCBOR f) =>
+  FromCBOR (a, b, c, d, e, f)
+  where
+  fromCBOR = do
+    decodeListLenOf 6
+    !a <- fromCBOR
+    !b <- fromCBOR
+    !c <- fromCBOR
+    !d <- fromCBOR
+    !e <- fromCBOR
+    !f <- fromCBOR
+    return (a, b, c, d, e, f)
+  dropCBOR _ =
+    decodeListLenOf 6
+      <* dropCBOR (Proxy @a)
+      <* dropCBOR (Proxy @b)
+      <* dropCBOR (Proxy @c)
+      <* dropCBOR (Proxy @d)
+      <* dropCBOR (Proxy @e)
+      <* dropCBOR (Proxy @f)
 
 instance
   ( FromCBOR a,
@@ -224,6 +275,15 @@ instance
     !f <- fromCBOR
     !g <- fromCBOR
     return (a, b, c, d, e, f, g)
+  dropCBOR _ =
+    decodeListLenOf 7
+      <* dropCBOR (Proxy @a)
+      <* dropCBOR (Proxy @b)
+      <* dropCBOR (Proxy @c)
+      <* dropCBOR (Proxy @d)
+      <* dropCBOR (Proxy @e)
+      <* dropCBOR (Proxy @f)
+      <* dropCBOR (Proxy @g)
 
 instance FromCBOR BS.ByteString where
   fromCBOR = decodeBytes
@@ -252,17 +312,8 @@ instance FromCBOR a => FromCBOR [a] where
   fromCBOR = decodeList fromCBOR
 
 instance (FromCBOR a, FromCBOR b) => FromCBOR (Either a b) where
-  fromCBOR = do
-    decodeListLenOf 2
-    t <- decodeWord
-    case t of
-      0 -> do
-        !x <- fromCBOR
-        return (Left x)
-      1 -> do
-        !x <- fromCBOR
-        return (Right x)
-      _ -> cborError $ DecoderErrorUnknownTag "Either" (fromIntegral t)
+  fromCBOR = decodeEither (fromCBOR >>= \a -> a `seq` pure a) (fromCBOR >>= \a -> a `seq` pure a)
+  dropCBOR _ = () <$ decodeEither (dropCBOR (Proxy :: Proxy a)) (dropCBOR (Proxy :: Proxy b))
 
 instance FromCBOR a => FromCBOR (NonEmpty a) where
   fromCBOR = do
@@ -273,9 +324,11 @@ instance FromCBOR a => FromCBOR (NonEmpty a) where
 
 instance FromCBOR a => FromCBOR (Maybe a) where
   fromCBOR = decodeMaybe fromCBOR
+  dropCBOR _ = () <$ decodeMaybe (dropCBOR (Proxy @a))
 
 instance FromCBOR a => FromCBOR (SMaybe.StrictMaybe a) where
   fromCBOR = SMaybe.maybeToStrictMaybe <$> decodeMaybe fromCBOR
+  dropCBOR _ = () <$ decodeMaybe (dropCBOR (Proxy @a))
 
 instance (Ord a, FromCBOR a) => FromCBOR (SSeq.StrictSeq a) where
   fromCBOR = decodeStrictSeq fromCBOR

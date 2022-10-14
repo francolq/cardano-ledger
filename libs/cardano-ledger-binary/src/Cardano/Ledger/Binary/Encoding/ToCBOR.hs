@@ -629,6 +629,28 @@ instance
       + size (Proxy @e)
 
 instance
+  (ToCBOR a, ToCBOR b, ToCBOR c, ToCBOR d, ToCBOR e, ToCBOR f) =>
+  ToCBOR (a, b, c, d, e, f)
+  where
+  toCBOR (a, b, c, d, e, f) =
+    encodeListLen 6
+      <> toCBOR a
+      <> toCBOR b
+      <> toCBOR c
+      <> toCBOR d
+      <> toCBOR e
+      <> toCBOR f
+
+  encodedSizeExpr size _ =
+    1
+      + size (Proxy @a)
+      + size (Proxy @b)
+      + size (Proxy @c)
+      + size (Proxy @d)
+      + size (Proxy @e)
+      + size (Proxy @f)
+
+instance
   (ToCBOR a, ToCBOR b, ToCBOR c, ToCBOR d, ToCBOR e, ToCBOR f, ToCBOR g) =>
   ToCBOR (a, b, c, d, e, f, g)
   where

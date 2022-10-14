@@ -45,6 +45,7 @@ module Cardano.Ledger.Binary.Decoding.Decoder
 
     -- *** Containers
     decodeMaybe,
+    decodeEither,
     decodeList,
     decodeNullMaybe,
     decodeVector,
@@ -462,6 +463,15 @@ decodeNullMaybe decoder = do
       decodeNull
       pure Nothing
     _ -> Just <$> decoder
+
+decodeEither :: Decoder s a -> Decoder s b -> Decoder s (Either a b)
+decodeEither decodeLeft decodeRight = do
+  decodeListLenOf 2
+  t <- decodeWord
+  case t of
+    0 -> Left <$> decodeLeft
+    1 -> Right <$> decodeRight
+    _ -> cborError $ DecoderErrorUnknownTag "Either" (fromIntegral t)
 
 decodeRecordNamed :: Text.Text -> (a -> Int) -> Decoder s a -> Decoder s a
 decodeRecordNamed name getRecordSize decoder = do

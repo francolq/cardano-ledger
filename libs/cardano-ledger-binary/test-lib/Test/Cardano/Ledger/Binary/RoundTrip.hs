@@ -1,5 +1,6 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
@@ -12,6 +13,7 @@ module Test.Cardano.Ledger.Binary.RoundTrip
     roundTripExpectation,
     RoundTripFailure (..),
     Trip (..),
+    mkTrip,
     cborTrip,
     roundTrip,
     roundTripTwiddled,
@@ -24,6 +26,7 @@ module Test.Cardano.Ledger.Binary.RoundTrip
 where
 
 import Cardano.Ledger.Binary
+import Control.Monad (guard)
 import Data.Bifunctor (first)
 import qualified Data.ByteString.Lazy as BSL
 import Data.Proxy
@@ -67,19 +70,30 @@ data RoundTripFailure = RoundTripFailure
     rtfEncoding :: Encoding,
     -- | Serialized encoding using the version in this failure
     rtfEncodedBytes :: BSL.ByteString,
-    -- | Error received while decoding the produced bytes
-    rtfDecoderError :: DecoderError
+    -- | Error received while decoding the produced bytes and dropping the value. It will
+    -- be always `Nothign`, unless the error produced did not match the `rtfDecoderError`,
+    -- in which case it will be `Just` the error.
+    rtfDropperError :: Maybe DecoderError,
+    -- | Error received while decoding the produced bytes. It is a possible erroneous
+    -- state for a dropper to produce an error, while decoder going through
+    -- successfully. In such a case this field will be `Nothing`, however
+    -- `rtfDropperError` will be set to `Just`
+    rtfDecoderError :: Maybe DecoderError
   }
 
 instance Show RoundTripFailure where
   show RoundTripFailure {..} =
     unlines $
       [ show rtfVersion,
-        showDecoderError rtfDecoderError,
+        showMaybeDecoderError "Decoder" rtfDecoderError,
+        showMaybeDecoderError "Dropper" rtfDecoderError,
         prettyTerm
       ]
         ++ showHexBytesGrouped bytes
     where
+      showMaybeDecoderError name = \case
+        Nothing -> "No " ++ name ++ " error"
+        Just err -> showDecoderError err
       bytes = BSL.toStrict rtfEncodedBytes
       prettyTerm =
         case decodeFullDecoder' rtfVersion "Term" decodeTerm bytes of
@@ -91,20 +105,26 @@ instance Show RoundTripFailure where
 -- exact same one then it would be a dual and is expected to round trip.
 data Trip a b = Trip
   { tripEncoder :: a -> Encoding,
-    tripDecoder :: forall s. Decoder s b
+    tripDecoder :: forall s. Decoder s b,
+    tripDropper :: forall s. Decoder s ()
   }
 
-cborTrip :: (ToCBOR a, FromCBOR b) => Trip a b
-cborTrip = Trip toCBOR fromCBOR
+cborTrip :: forall a b. (ToCBOR a, FromCBOR b) => Trip a b
+cborTrip = Trip toCBOR fromCBOR (dropCBOR (Proxy @b))
+
+-- | Construct a `Trip` using encoder and decoder, with dropper set to the decoder which
+-- drops the value
+mkTrip :: forall a b. (a -> Encoding) -> (forall s. Decoder s b) -> Trip a b
+mkTrip encoder decoder = Trip encoder decoder (() <$ decoder)
 
 roundTrip :: Typeable t => Version -> Trip t t -> t -> Either RoundTripFailure t
 roundTrip = embedTrip
 
 roundTripTwiddled ::
-  Twiddle t => Version -> t -> Gen (Either RoundTripFailure t)
+  forall t. (Twiddle t, FromCBOR t) => Version -> t -> Gen (Either RoundTripFailure t)
 roundTripTwiddled version x = do
   tw <- twiddle x
-  pure (roundTrip version (Trip (const (encodeTerm tw)) fromCBOR) x)
+  pure (roundTrip version (Trip (const (encodeTerm tw)) fromCBOR (dropCBOR (Proxy @t))) x)
 
 roundTripAnn :: (ToCBOR t, FromCBOR (Annotator t)) => Version -> t -> Either RoundTripFailure t
 roundTripAnn = embedTripAnn
@@ -122,7 +142,7 @@ decodeAnn ::
   Encoding ->
   Either RoundTripFailure t
 decodeAnn version encoding =
-  first (RoundTripFailure version encoding encodedBytes) $
+  first (RoundTripFailure version encoding encodedBytes Nothing . Just) $
     decodeFullAnnotator version (label (Proxy @(Annotator t))) fromCBOR encodedBytes
   where
     encodedBytes = serializeEncoding version encoding
@@ -134,12 +154,27 @@ embedTripLabel ::
   Trip a b ->
   a ->
   Either RoundTripFailure b
-embedTripLabel lbl version (Trip encoder decoder) s =
-  first (RoundTripFailure version encoding encodedBytes) $
-    decodeFullDecoder version lbl decoder encodedBytes
+embedTripLabel lbl version (Trip encoder decoder dropper) s =
+  case decodeFullDecoder version lbl decoder encodedBytes of
+    Right val
+      | Nothing <- dropperError -> pure val
+      | Just err <- dropperError ->
+          Left $ RoundTripFailure version encoding encodedBytes (Just err) Nothing
+    Left err ->
+      Left $
+        RoundTripFailure
+          version
+          encoding
+          encodedBytes
+          (dropperError >>= \dropErr -> guard (dropErr /= err) >> dropperError)
+          (Just err)
   where
     encoding = encoder s
     encodedBytes = serializeEncoding version encoding
+    dropperError =
+      case decodeFullDecoder version lbl dropper encodedBytes of
+        Left err -> Just err
+        Right () -> Nothing
 
 -- | Can we serialise a type, and then deserialise it as something else?
 embedTrip :: forall a b. Typeable b => Version -> Trip a b -> a -> Either RoundTripFailure b
