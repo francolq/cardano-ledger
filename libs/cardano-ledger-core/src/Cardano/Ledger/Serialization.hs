@@ -1,5 +1,4 @@
 {-# LANGUAGE BangPatterns #-}
-{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
@@ -10,6 +9,7 @@
 {-# OPTIONS_GHC -fno-warn-redundant-constraints #-}
 
 module Cardano.Ledger.Serialization
+  {-# DEPRECATED "Use `Cardano.Ledger.Binary` from 'cardano-ledger-binary' package instead" #-}
   ( ToCBORGroup (..),
     FromCBORGroup (..),
     CBORGroup (..),
@@ -61,8 +61,9 @@ module Cardano.Ledger.Serialization
   )
 where
 
-import Cardano.Binary
+import Cardano.Ledger.Binary
   ( Annotated (..),
+    Annotator,
     ByteSpan (..),
     Decoder,
     DecoderError (..),
@@ -71,13 +72,31 @@ import Cardano.Binary
     Size,
     ToCBOR (..),
     annotatedDecoder,
+    cborError,
     decodeAnnotator,
+    decodeList,
     decodeListLenOrIndef,
+    decodeMap,
+    decodeMapContents,
+    decodeMapTraverse,
+    decodeNullMaybe,
+    decodeSeq,
+    decodeSet,
+    decodeStrictSeq,
     decodeTag,
+    encodeFoldable,
+    encodeFoldableEncoder,
     encodeListLen,
+    encodeMap,
+    encodeNullMaybe,
     encodeTag,
     serialize,
     withWordSize,
+  )
+import Cardano.Ledger.Binary.Coders
+  ( decodeRecordNamed,
+    decodeRecordNamedT,
+    decodeRecordSum,
   )
 import Control.DeepSeq
 import Control.Monad (unless, when)
@@ -88,28 +107,6 @@ import qualified Data.ByteString as BS
 import qualified Data.ByteString.Builder as BS
 import qualified Data.ByteString.Builder.Extra as BS
 import qualified Data.ByteString.Lazy as BSL
-import Data.Coders
-  ( Annotator,
-    cborError,
-    decodeCollectionWithLen,
-    decodeList,
-    decodeMap,
-    decodeMapContents,
-    decodeMapTraverse,
-    decodeNullMaybe,
-    decodeRecordNamed,
-    decodeRecordNamedT,
-    decodeRecordSum,
-    decodeSeq,
-    decodeSet,
-    decodeStrictSeq,
-    encodeFoldable,
-    encodeFoldableEncoder,
-    encodeMap,
-    encodeNullMaybe,
-    wrapCBORArray,
-    wrapCBORMap,
-  )
 import Data.Foldable (foldl')
 import Data.IP
   ( IPv4,
@@ -221,17 +218,6 @@ ratioToCBOR r =
 ratioFromCBOR :: (Bounded a, Integral a, FromCBOR a) => Decoder s (Ratio a)
 ratioFromCBOR = decodeFraction fromCBOR
 
-decodeFraction :: Integral a => Decoder s a -> Decoder s (Ratio a)
-decodeFraction decoder = do
-  t <- decodeTag
-  unless (t == 30) $ cborError $ DecoderErrorCustom "rational" "expected tag 30"
-  (numValues, values) <- decodeCollectionWithLen decodeListLenOrIndef decoder
-  case values of
-    [n, d] -> do
-      when (d == 0) (fail "denominator cannot be 0")
-      pure $ n % d
-    _ -> cborError $ DecoderErrorSizeMismatch "rational" 2 numValues
-
 ipv4ToBytes :: IPv4 -> BS.ByteString
 ipv4ToBytes = BSL.toStrict . runPut . putWord32le . toHostAddress
 
@@ -318,57 +304,3 @@ utcTimeFromCBOR = do
       UTCTime
         (fromOrdinalDate year dayOfYear)
         (picosecondsToDiffTime diff)
-
-translateViaCBORAnn :: (ToCBOR a, FromCBOR (Annotator b)) => Text -> a -> Except DecoderError b
-translateViaCBORAnn name x =
-  case decodeAnnotator name fromCBOR (serialize x) of
-    Right newx -> pure newx
-    Left decoderError -> throwError decoderError
-
--- | A CBOR deserialized value together with its size. When deserializing use
--- either `sizedDecoder` or its `FromCBOR` instance.
---
--- Use `mkSized` to construct such value.
-data Sized a = Sized
-  { sizedValue :: !a,
-    -- | Overhead in bytes. The field is lazy on purpose, because it might not
-    -- be needed, but it can be expensive to compute.
-    sizedSize :: Int64
-  }
-  deriving (Eq, Show, Generic)
-
-instance NoThunks a => NoThunks (Sized a)
-
-instance NFData a => NFData (Sized a) where
-  rnf (Sized val sz) = val `deepseq` sz `seq` ()
-
--- | Construct a `Sized` value by serializing it first and recording the amount
--- of bytes it requires. Note, however, CBOR serialization is not canonical,
--- therefore it is *NOT* a requirement that this property holds:
---
--- > sizedSize (mkSized a) === sizedSize (unsafeDeserialize (serialize a) :: a)
-mkSized :: ToCBOR a => a -> Sized a
-mkSized a =
-  Sized
-    { sizedValue = a,
-      sizedSize = BSL.length (serialize a)
-    }
-
-sizedDecoder :: Decoder s a -> Decoder s (Sized a)
-sizedDecoder decoder = do
-  Annotated v (ByteSpan start end) <- annotatedDecoder decoder
-  pure $! Sized v $! end - start
-
-instance FromCBOR a => FromCBOR (Sized a) where
-  fromCBOR = sizedDecoder fromCBOR
-
--- | Discards the size.
-instance ToCBOR a => ToCBOR (Sized a) where
-  -- Size is an auxiliary value and should not be transmitted over the wire,
-  -- therefore it is ignored.
-  toCBOR (Sized v _) = toCBOR v
-
--- | Take a lens that operates on a particular type and convert it into a lens
--- that operates on the `Sized` version of the type.
-toSizedL :: ToCBOR s => Lens' s a -> Lens' (Sized s) a
-toSizedL l = lens (\sv -> sizedValue sv ^. l) (\sv a -> mkSized (sizedValue sv & l .~ a))
