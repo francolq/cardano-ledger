@@ -75,13 +75,13 @@ module Cardano.Ledger.Keys
   )
 where
 
-import Cardano.Binary (FromCBOR (..), ToCBOR (..), encodeListLen)
 import qualified Cardano.Crypto.DSIGN as DSIGN
 import qualified Cardano.Crypto.Hash as Hash
 import qualified Cardano.Crypto.KES as KES
 import qualified Cardano.Crypto.VRF as VRF
+import Cardano.Ledger.Binary (FromCBOR (..), ToCBOR (..), decodeRecordNamed, encodeListLen, encodedVerKeyDSIGNSizeExpr)
+import Cardano.Ledger.Binary.Crypto (decodeVerKeyDSIGN, encodeVerKeyDSIGN)
 import Cardano.Ledger.Crypto (ADDRHASH, Crypto, DSIGN, HASH, KES, VRF)
-import Cardano.Ledger.Serialization (decodeRecordNamed)
 import Control.DeepSeq (NFData)
 import Data.Aeson (FromJSON (..), FromJSONKey, ToJSON (..), ToJSONKey, (.:), (.=))
 import qualified Data.Aeson as Aeson
@@ -171,14 +171,14 @@ instance
   (Crypto c, Typeable kd) =>
   FromCBOR (VKey kd c)
   where
-  fromCBOR = VKey <$> DSIGN.decodeVerKeyDSIGN
+  fromCBOR = VKey <$> decodeVerKeyDSIGN
 
 instance
   (Crypto c, Typeable kd) =>
   ToCBOR (VKey kd c)
   where
-  toCBOR (VKey vk) = DSIGN.encodeVerKeyDSIGN vk
-  encodedSizeExpr _size proxy = DSIGN.encodedVerKeyDSIGNSizeExpr ((\(VKey k) -> k) <$> proxy)
+  toCBOR (VKey vk) = encodeVerKeyDSIGN vk
+  encodedSizeExpr _size proxy = encodedVerKeyDSIGNSizeExpr ((\(VKey k) -> k) <$> proxy)
 
 -- | Pair of signing key and verification key, with a usage role.
 data KeyPair (kd :: KeyRole) c = KeyPair
@@ -317,8 +317,10 @@ instance Crypto c => FromJSON (GenDelegPair c) where
   parseJSON =
     Aeson.withObject "GenDelegPair" $ \obj ->
       GenDelegPair
-        <$> obj .: "delegate"
-        <*> obj .: "vrf"
+        <$> obj
+        .: "delegate"
+        <*> obj
+        .: "vrf"
 
 newtype GenDelegs c = GenDelegs
   { unGenDelegs :: Map (KeyHash 'Genesis c) (GenDelegPair c)

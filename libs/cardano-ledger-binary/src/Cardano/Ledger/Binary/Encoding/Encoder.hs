@@ -1,3 +1,4 @@
+{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase #-}
@@ -29,6 +30,10 @@ module Cardano.Ledger.Binary.Encoding.Encoder
     encodeMap,
     encodeVMap,
     encodeVector,
+
+    -- **** Helpers
+    encodeFoldableEncoder,
+    encodeFoldableMapEncoder,
 
     -- *** Time
     encodeUTCTime,
@@ -89,7 +94,7 @@ import qualified Data.ByteString as BS
 import Data.ByteString.Builder (Builder)
 import qualified Data.ByteString.Lazy as BSL
 import Data.Fixed (E12, resolution)
-import Data.Foldable (foldMap')
+import Data.Foldable as F (foldMap', foldl')
 import Data.IP (IPv4, IPv6, toHostAddress, toHostAddress6)
 import Data.Int (Int16, Int32, Int64, Int8)
 import qualified Data.Map.Strict as Map
@@ -293,6 +298,28 @@ encodePair :: (a -> Encoding) -> (b -> Encoding) -> (a, b) -> Encoding
 encodePair = encodeTuple
 {-# DEPRECATED encodePair "In favor of `encodeTuple`" #-}
 
+encodeFoldableEncoder :: Foldable f => (a -> Encoding) -> f a -> Encoding
+encodeFoldableEncoder encoder xs = variableListLenEncoding len contents
+  where
+    (len, contents) = foldl' go (0, mempty) xs
+    go (!l, !enc) next = (l + 1, enc <> encoder next)
+
+-- | Encode a data structure as a Map from 0-based index for a Key to a value.
+encodeFoldableMapEncoder ::
+  Foldable f =>
+  -- | A function that accepts an index of the value in the foldable data strucure, the
+  -- actual value and optionally produces the encoding of the value and an index if that
+  -- value should be encoded.
+  (Word -> a -> Maybe Encoding) ->
+  f a ->
+  Encoding
+encodeFoldableMapEncoder encode xs = variableMapLenEncoding len contents
+  where
+    (len, _, contents) = F.foldl' go (0, 0, mempty) xs
+    go (!l, !i, !enc) next = case encode i next of
+      Nothing -> (l, i + 1, enc)
+      Just e -> (l + 1, i + 1, enc <> e)
+
 --------------------------------------------------------------------------------
 -- Map
 --------------------------------------------------------------------------------
@@ -362,9 +389,14 @@ exactListLenEncoding len contents =
   encodeListLen (fromIntegral len :: Word) <> contents
 {-# INLINE exactListLenEncoding #-}
 
--- | Conditionally use variable length encoding, but only for lists and sets larger than
--- 23
-variableListLenEncoding :: Int -> Encoding -> Encoding
+-- | Conditionally use variable length encoding for list like structures with length
+-- larger than 23, otherwise use exact list length encoding.
+variableListLenEncoding ::
+  -- | Number of elements in the encoded data structure.
+  Int ->
+  -- | Encoding for the actual data structure
+  Encoding ->
+  Encoding
 variableListLenEncoding len contents =
   if len <= lengthThreshold
     then exactListLenEncoding len contents

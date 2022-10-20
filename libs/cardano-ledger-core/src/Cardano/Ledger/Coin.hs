@@ -21,7 +21,7 @@ module Cardano.Ledger.Coin
   )
 where
 
-import Cardano.Binary (FromCBOR (..), ToCBOR (..))
+import Cardano.Ledger.Binary (FromCBOR (..), ToCBOR (..))
 import Cardano.HeapWords (HeapWords)
 import Cardano.Ledger.Compactible
 import Control.DeepSeq (NFData)

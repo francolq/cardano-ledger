@@ -30,6 +30,7 @@ module Cardano.Ledger.Binary.Decoding.Decoder
     -- ** Error reporting
     cborError,
     showDecoderError,
+    invalidKey,
     assertTag,
     enforceSize,
     matchSize,
@@ -39,6 +40,7 @@ module Cardano.Ledger.Binary.Decoding.Decoder
 
     -- ** Custom decoders
     decodeRational,
+    decodeFraction,
     decodeRecordNamed,
     decodeRecordNamedT,
     decodeRecordSum,
@@ -341,6 +343,11 @@ cborError = fail . showDecoderError
 
 showDecoderError :: DecoderError -> String
 showDecoderError = formatToString build
+
+-- | Report an error when a numeric key of the type constructor doesn't match.
+invalidKey :: Word -> Decoder s a
+invalidKey k = cborError $ DecoderErrorCustom "Not a valid key:" (Text.pack $ show k)
+
 
 -- | `Decoder` for `Rational`. Versions variance:
 --

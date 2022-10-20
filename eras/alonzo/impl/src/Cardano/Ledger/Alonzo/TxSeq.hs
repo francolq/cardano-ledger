@@ -114,9 +114,9 @@ pattern AlonzoTxSeq xs <-
       let serializeFoldable x =
             serializeEncoding $
               encodeFoldableEncoder encodePreEncoded x
-          metaChunk index m = encodePair <$> strictMaybeToMaybe m
+          metaChunk index m = encodeIndexed <$> strictMaybeToMaybe m
             where
-              encodePair metadata = toCBOR index <> encodePreEncoded metadata
+              encodeIndexed metadata = toCBOR index <> encodePreEncoded metadata
        in TxSeq'
             { txSeqTxns = txns,
               txSeqBodyBytes =

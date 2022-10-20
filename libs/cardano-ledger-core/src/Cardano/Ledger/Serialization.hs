@@ -1,19 +1,18 @@
-{-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# OPTIONS_GHC -fno-warn-redundant-constraints #-}
+{-# LANGUAGE TypeApplications #-}
+{-# OPTIONS_GHC -fno-warn-deprecations #-}
 
 module Cardano.Ledger.Serialization
   {-# DEPRECATED "Use `Cardano.Ledger.Binary` from 'cardano-ledger-binary' package instead" #-}
   ( ToCBORGroup (..),
     FromCBORGroup (..),
     CBORGroup (..),
-    CborSeq (..),
     decodeList,
     decodeSeq,
     decodeStrictSeq,
@@ -36,7 +35,7 @@ module Cardano.Ledger.Serialization
     ratioFromCBOR,
     mapToCBOR,
     mapFromCBOR,
-    translateViaCBORAnn,
+    translateViaCBORAnnotator,
     -- IPv4
     ipv4ToBytes,
     ipv4FromBytes,
@@ -62,20 +61,19 @@ module Cardano.Ledger.Serialization
 where
 
 import Cardano.Ledger.Binary
-  ( Annotated (..),
-    Annotator,
-    ByteSpan (..),
-    Decoder,
+  ( Decoder,
     DecoderError (..),
     Encoding,
     FromCBOR (..),
     Size,
+    Sized (..),
     ToCBOR (..),
-    annotatedDecoder,
     cborError,
     decodeAnnotator,
+    decodeFraction,
+    decodeIPv4,
+    decodeIPv6,
     decodeList,
-    decodeListLenOrIndef,
     decodeMap,
     decodeMapContents,
     decodeMapTraverse,
@@ -83,14 +81,23 @@ import Cardano.Ledger.Binary
     decodeSeq,
     decodeSet,
     decodeStrictSeq,
-    decodeTag,
-    encodeFoldable,
     encodeFoldableEncoder,
+    encodeFoldableMapEncoder,
+    encodeIPv4,
+    encodeIPv6,
     encodeListLen,
     encodeMap,
     encodeNullMaybe,
     encodeTag,
-    serialize,
+    enforceVersionDecoder,
+    ipv4ToBytes,
+    ipv6ToBytes,
+    mkSized,
+    natVersion,
+    runByteBuilder,
+    sizedDecoder,
+    toSizedL,
+    translateViaCBORAnnotator,
     withWordSize,
   )
 import Cardano.Ledger.Binary.Coders
@@ -98,39 +105,22 @@ import Cardano.Ledger.Binary.Coders
     decodeRecordNamedT,
     decodeRecordSum,
   )
-import Control.DeepSeq
-import Control.Monad (unless, when)
-import Control.Monad.Except (Except, MonadError (throwError))
 import Data.Binary.Get (Get, getWord32le, runGetOrFail)
-import Data.Binary.Put (putWord32le, runPut)
 import qualified Data.ByteString as BS
-import qualified Data.ByteString.Builder as BS
-import qualified Data.ByteString.Builder.Extra as BS
 import qualified Data.ByteString.Lazy as BSL
-import Data.Foldable (foldl')
 import Data.IP
   ( IPv4,
     IPv6,
     fromHostAddress,
     fromHostAddress6,
-    toHostAddress,
-    toHostAddress6,
   )
-import Data.Int (Int64)
 import Data.Map.Strict (Map)
-import Data.Ratio (Ratio, denominator, numerator, (%))
-import Data.Sequence (Seq)
-import qualified Data.Sequence as Seq
-import Data.Text (Text)
-import qualified Data.Text as Text
+import Data.Ratio (Ratio, denominator, numerator)
 import Data.Time (UTCTime (..))
 import Data.Time.Calendar.OrdinalDate (fromOrdinalDate, toOrdinalDate)
 import Data.Time.Clock (diffTimeToPicoseconds, picosecondsToDiffTime)
 import Data.Typeable
-import GHC.Generics
-import Lens.Micro
 import Network.Socket (HostAddress6)
-import NoThunks.Class (NoThunks)
 import Prelude
 
 class Typeable a => ToCBORGroup a where
@@ -173,30 +163,6 @@ mapToCBOR = encodeMap toCBOR toCBOR
 mapFromCBOR :: (Ord a, FromCBOR a, FromCBOR b) => Decoder s (Map a b)
 mapFromCBOR = decodeMap fromCBOR fromCBOR
 
-newtype CborSeq a = CborSeq {unwrapCborSeq :: Seq a}
-  deriving (Foldable)
-
-instance ToCBOR a => ToCBOR (CborSeq a) where
-  toCBOR (CborSeq xs) =
-    let l = fromIntegral $ Seq.length xs
-        contents = foldMap toCBOR xs
-     in wrapCBORArray l contents
-
-instance FromCBOR a => FromCBOR (CborSeq a) where
-  fromCBOR = CborSeq <$> decodeSeq fromCBOR
-
-encodeFoldableMapEncoder ::
-  Foldable f =>
-  (Word -> a -> Maybe Encoding) ->
-  f a ->
-  Encoding
-encodeFoldableMapEncoder encode xs = wrapCBORMap len contents
-  where
-    (len, _, contents) = foldl' go (0, 0, mempty) xs
-    go (!l, !i, !enc) next = case encode i next of
-      Nothing -> (l, i + 1, enc)
-      Just e -> (l + 1, i + 1, enc <> e)
-
 decodeMaybe :: Decoder s a -> Decoder s (Maybe a)
 decodeMaybe d =
   decodeList d >>= \case
@@ -215,11 +181,8 @@ ratioToCBOR r =
     <> toCBOR (numerator r)
     <> toCBOR (denominator r)
 
-ratioFromCBOR :: (Bounded a, Integral a, FromCBOR a) => Decoder s (Ratio a)
+ratioFromCBOR :: (Integral a, FromCBOR a) => Decoder s (Ratio a)
 ratioFromCBOR = decodeFraction fromCBOR
-
-ipv4ToBytes :: IPv4 -> BS.ByteString
-ipv4ToBytes = BSL.toStrict . runPut . putWord32le . toHostAddress
 
 ipv4FromBytes :: BS.ByteString -> Either String IPv4
 ipv4FromBytes b =
@@ -228,25 +191,10 @@ ipv4FromBytes b =
     Right (_, _, ha) -> Right $ fromHostAddress ha
 
 ipv4ToCBOR :: IPv4 -> Encoding
-ipv4ToCBOR = toCBOR . ipv4ToBytes
-
-byteDecoderToDecoder :: Text -> (BS.ByteString -> Either String a) -> Decoder s a
-byteDecoderToDecoder name fromBytes = do
-  b <- fromCBOR
-  case fromBytes b of
-    Left err -> cborError $ DecoderErrorCustom name (Text.pack err)
-    Right ip -> pure ip
+ipv4ToCBOR = encodeIPv4
 
 ipv4FromCBOR :: Decoder s IPv4
-ipv4FromCBOR = byteDecoderToDecoder "IPv4" ipv4FromBytes
-
-ipv6ToBytes :: IPv6 -> BS.ByteString
-ipv6ToBytes ipv6 = BSL.toStrict . runPut $ do
-  let (w1, w2, w3, w4) = toHostAddress6 ipv6
-  putWord32le w1
-  putWord32le w2
-  putWord32le w3
-  putWord32le w4
+ipv4FromCBOR = enforceVersionDecoder (natVersion @2) decodeIPv4
 
 getHostAddress6 :: Get HostAddress6
 getHostAddress6 = do
@@ -263,27 +211,14 @@ ipv6FromBytes b =
     Right (_, _, ha) -> Right $ fromHostAddress6 ha
 
 ipv6ToCBOR :: IPv6 -> Encoding
-ipv6ToCBOR = toCBOR . ipv6ToBytes
+ipv6ToCBOR = encodeIPv6
 
 ipv6FromCBOR :: Decoder s IPv6
-ipv6FromCBOR = byteDecoderToDecoder "IPv6" ipv6FromBytes
+ipv6FromCBOR = enforceVersionDecoder (natVersion @2) decodeIPv6
 
 --
 -- Raw serialisation
 --
-
--- | Run a ByteString 'BS.Builder' using a strategy aimed at making smaller
--- things efficiently.
---
--- It takes a size hint and produces a strict 'ByteString'. This will be fast
--- when the size hint is the same or slightly bigger than the true size.
-runByteBuilder :: Int -> BS.Builder -> BS.ByteString
-runByteBuilder !sizeHint =
-  BSL.toStrict
-    . BS.toLazyByteStringWith
-      (BS.safeStrategy sizeHint (2 * sizeHint))
-      mempty
-{-# NOINLINE runByteBuilder #-}
 
 utcTimeToCBOR :: UTCTime -> Encoding
 utcTimeToCBOR t =
@@ -304,3 +239,6 @@ utcTimeFromCBOR = do
       UTCTime
         (fromOrdinalDate year dayOfYear)
         (picosecondsToDiffTime diff)
+
+encodeFoldable :: (ToCBOR a, Foldable f) => f a -> Encoding
+encodeFoldable = encodeFoldableEncoder toCBOR

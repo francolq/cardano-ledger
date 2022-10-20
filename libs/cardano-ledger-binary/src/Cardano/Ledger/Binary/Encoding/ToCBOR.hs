@@ -37,6 +37,14 @@ module Cardano.Ledger.Binary.Encoding.ToCBOR
     szSimplify,
     apMono,
     szBounds,
+
+    -- ** Crypto
+    encodedVerKeyDSIGNSizeExpr,
+    encodedSignKeyDSIGNSizeExpr,
+    encodedSigDSIGNSizeExpr,
+    encodedVerKeyKESSizeExpr,
+    encodedSignKeyKESSizeExpr,
+    encodedSigKESSizeExpr,
   )
 where
 

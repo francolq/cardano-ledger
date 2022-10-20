@@ -28,7 +28,7 @@ module Cardano.Ledger.Hashes
   )
 where
 
-import Cardano.Binary (FromCBOR, ToCBOR)
+import Cardano.Ledger.Binary (FromCBOR, ToCBOR)
 import qualified Cardano.Crypto.Hash as Hash
 import Cardano.Ledger.Crypto (ADDRHASH)
 import qualified Cardano.Ledger.Crypto as CC (Crypto)

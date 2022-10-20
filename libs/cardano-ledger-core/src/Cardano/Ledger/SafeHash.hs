@@ -58,7 +58,7 @@ module Cardano.Ledger.SafeHash
   )
 where
 
-import Cardano.Binary (FromCBOR (..), ToCBOR (..))
+import Cardano.Ledger.Binary (FromCBOR (..), ToCBOR (..))
 import qualified Cardano.Crypto.Hash as Hash
 import Cardano.HeapWords (HeapWords (..))
 import qualified Cardano.Ledger.Crypto as CC

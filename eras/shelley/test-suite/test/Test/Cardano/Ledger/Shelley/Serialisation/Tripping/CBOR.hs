@@ -232,22 +232,6 @@ pulsingTest =
       testProperty "roundtrip PulsingRewUpdate" prop_roundtrip_PulsingRewUpdate
     ]
 
--- TODO
-
--- roundTripIpv4 :: Property
--- roundTripIpv4 =
---   -- We are using a QC generator which means we need QC test
---   Hedgehog.property $ do
---     ha <- forAll genIPv4
---     Hedgehog.tripping ha ipv4ToBytes ipv4FromBytes
-
--- roundTripIpv6 :: Property
--- roundTripIpv6 =
---   -- We are using a QC generator which means we need QC test
---   Hedgehog.property $ do
---     ha <- forAll genIPv6
---     Hedgehog.tripping ha ipv6ToBytes ipv6FromBytes
-
 tests :: TestTree
 tests =
   testGroup
