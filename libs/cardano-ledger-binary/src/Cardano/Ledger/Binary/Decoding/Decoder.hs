@@ -372,15 +372,17 @@ decodeRational =
         (natVersion @2)
         (decodeFraction decodeInteger)
         ( do
-            enforceSize "Ratio" 2
+            enforceSize "Rational" 2
             n <- decodeInteger
             d <- decodeInteger
             if d <= 0
-              then cborError $ DecoderErrorCustom "Ratio" "invalid denominator"
+              then cborError $ DecoderErrorCustom "Rational" "invalid denominator"
               else return $! n % d
         )
     )
 
+-- | /Warning/ - This function is susceptible to overflows for anything other than
+-- `Rational`
 decodeFraction :: Integral a => Decoder s a -> Decoder s (Ratio a)
 decodeFraction decoder = do
   t <- decodeTag
@@ -401,7 +403,7 @@ decodeRationalV8 = do
     [n, d] -> do
       when (d <= 0) (fail "Denominator must be positive")
       pure $ n % d
-    _ -> cborError $ DecoderErrorSizeMismatch "rational" 2 numValues
+    _ -> cborError $ DecoderErrorSizeMismatch "Rational" 2 numValues
 
 --------------------------------------------------------------------------------
 -- Containers
