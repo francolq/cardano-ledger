@@ -29,6 +29,7 @@ module Cardano.Ledger.Binary.Decoding.Decoder
 
     -- ** Error reporting
     cborError,
+    toCborError,
     showDecoderError,
     invalidKey,
     assertTag,
@@ -243,6 +244,7 @@ import qualified Data.VMap as VMap
 import qualified Data.Vector.Generic as VG
 import Data.Word (Word16, Word32, Word64, Word8)
 import Formatting (build, formatToString)
+import qualified Formatting.Buildable as B (Buildable (..))
 import GHC.Exts as Exts (IsList (..))
 import Network.Socket (HostAddress6)
 import Numeric.Natural (Natural)
@@ -348,6 +350,9 @@ showDecoderError = formatToString build
 invalidKey :: Word -> Decoder s a
 invalidKey k = cborError $ DecoderErrorCustom "Not a valid key:" (Text.pack $ show k)
 
+-- | Convert an 'Either'-encoded failure to a 'cborg' decoder failure
+toCborError :: B.Buildable e => Either e a -> Decoder s a
+toCborError = either (fail . formatToString build) pure
 
 -- | `Decoder` for `Rational`. Versions variance:
 --

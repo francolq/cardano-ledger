@@ -38,6 +38,7 @@ import Cardano.Ledger.Binary
     szSimplify,
     szWithCtx,
     unsafeDeserialize,
+    byronProtVer,
   )
 import Cardano.Ledger.Binary.FlatTerm (toFlatTerm, validFlatTerm)
 import qualified Data.ByteString as BS
@@ -53,7 +54,6 @@ import qualified Hedgehog as HH
 import qualified Hedgehog.Gen as HH.Gen
 import Numeric.Natural (Natural)
 import Test.Cardano.Ledger.Binary.Arbitrary ()
-import Test.Cardano.Ledger.Binary.Vintage.Helpers.GoldenRoundTrip (byronProtVer)
 import Test.Hspec ()
 import Test.Hspec.QuickCheck ()
 import Test.QuickCheck

@@ -87,18 +87,24 @@ library testlib
                    , Test.Cardano.Ledger.Binary.RoundTrip
                    , Test.Cardano.Ledger.Binary.TreeDiff
                    , Test.Cardano.Ledger.Binary.Twiddle
+                   , Test.Cardano.Ledger.Binary.Vintage.Helpers
+                   , Test.Cardano.Ledger.Binary.Vintage.Helpers.GoldenRoundTrip
   build-depends:     base
                    , bytestring
                    , base16-bytestring
                    , cardano-ledger-binary
                    , cardano-crypto-class
                    , cardano-crypto-tests
+                   , cardano-strict-containers
+                   , cardano-prelude-test
                    , cborg
                    , containers
-                   , cardano-strict-containers
+                   , formatting
                    , tree-diff
                    , iproute
+                   , hedgehog
                    , hspec
+                   , pretty-show
                    , primitive
                    , QuickCheck
                    , quickcheck-instances
@@ -117,8 +123,6 @@ test-suite tests
                    , Test.Cardano.Ledger.Binary.Vintage.Coders
                    , Test.Cardano.Ledger.Binary.Vintage.Drop
                    , Test.Cardano.Ledger.Binary.Vintage.Failure
-                   , Test.Cardano.Ledger.Binary.Vintage.Helpers
-                   , Test.Cardano.Ledger.Binary.Vintage.Helpers.GoldenRoundTrip
                    , Test.Cardano.Ledger.Binary.Vintage.RoundTrip
                    , Test.Cardano.Ledger.Binary.Vintage.Serialization
                    , Test.Cardano.Ledger.Binary.Vintage.SizeBounds
@@ -132,11 +136,9 @@ test-suite tests
                    , cardano-strict-containers
                    , cborg
                    , containers
-                   , formatting
                    , hedgehog
                    , hspec
                    , iproute
-                   , pretty-show
                    , primitive
                    , QuickCheck
                    , tagged

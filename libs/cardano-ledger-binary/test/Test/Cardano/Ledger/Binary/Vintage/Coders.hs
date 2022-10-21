@@ -20,11 +20,6 @@ import Data.Typeable
 import Test.Cardano.Ledger.Binary.RoundTrip (Trip (..), mkTrip, cborTrip, roundTripExpectation)
 import Test.Hspec
 
--- | "coders" functionality and this test module was introduced during Shelley, thus
--- version 2
-shelleyProtVer :: Version
-shelleyProtVer = natVersion @2
-
 -- ==========================================================================
 
 data TT

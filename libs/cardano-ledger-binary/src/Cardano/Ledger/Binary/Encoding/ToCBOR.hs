@@ -115,7 +115,7 @@ import Data.Functor.Foldable (cata, project)
 import Data.IP (IPv4, IPv6)
 import Data.Int (Int16, Int32, Int64, Int8)
 import Data.List.NonEmpty (NonEmpty)
-import qualified Data.Map as Map
+import qualified Data.Map.Strict as Map
 import qualified Data.Maybe.Strict as SMaybe
 import qualified Data.Primitive.ByteArray as Prim (ByteArray (..))
 import Data.Ratio (Ratio)

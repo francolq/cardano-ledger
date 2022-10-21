@@ -17,18 +17,22 @@ module Cardano.Ledger.Binary.Version
     natVersionProxy,
     mkVersion,
     allVersions,
+
+    -- ** Concrete era versions
+    byronProtVer,
+    shelleyProtVer,
   )
 where
 
-import Data.Proxy
-import GHC.TypeLits
+import Data.Proxy (Proxy (..))
+import GHC.TypeLits (KnownNat, natVal, type (<=))
 #if __GLASGOW_HASKELL__ < 900
 -- This import is dedundant wih ghc-9.2.
 import Numeric.Natural (Natural)
 #endif
 
 --------------------------------------------------------------------------------
--- Versioned Decoder
+-- Version
 --------------------------------------------------------------------------------
 
 -- | Protocol version number that is used during encoding and decoding. All supported
@@ -75,3 +79,9 @@ mkVersion v
 
 allVersions :: [Version]
 allVersions = [minBound .. maxBound]
+
+byronProtVer :: Version
+byronProtVer = natVersion @1
+
+shelleyProtVer :: Version
+shelleyProtVer = natVersion @2
