@@ -62,6 +62,7 @@ import Cardano.Ledger.Binary
     DecoderError (..),
     FromCBOR (..),
     ToCBOR (..),
+    byronProtVer,
     cborError,
     serialize,
     withWordSize,
@@ -201,7 +202,7 @@ decodeAbstractHash prettyHash = do
 -- | Hash the 'ToCBOR'-serialised version of a value
 -- Once this is no longer used outside this module it should be made private.
 abstractHash :: (HashAlgorithm algo, ToCBOR a) => a -> AbstractHash algo a
-abstractHash = unsafeAbstractHash . serialize minBound
+abstractHash = unsafeAbstractHash . serialize byronProtVer
 
 -- | Hash a lazy 'LByteString'
 --

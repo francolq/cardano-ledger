@@ -46,6 +46,7 @@ import Cardano.Ledger.Binary
     Encoding,
     FromCBOR (..),
     ToCBOR (..),
+    byronProtVer,
     serialize',
     serializeEncoding,
     toCborError,
@@ -150,7 +151,8 @@ sign pm tag sk = signEncoded pm tag sk . toCBOR
 -- | Like 'sign' but without the 'ToCBOR' constraint
 signEncoded ::
   ProtocolMagicId -> SignTag -> SigningKey -> Encoding -> Signature a
-signEncoded pm tag sk = coerce . signRaw pm (Just tag) sk . BSL.toStrict . serializeEncoding minBound
+signEncoded pm tag sk =
+  coerce . signRaw pm (Just tag) sk . BSL.toStrict . serializeEncoding byronProtVer
 
 -- | Sign a 'Raw' bytestring
 signRaw ::
@@ -169,7 +171,7 @@ signRaw pm mTag (SigningKey sk) x =
 
 safeSign ::
   ToCBOR a => ProtocolMagicId -> SignTag -> SafeSigner -> a -> Signature a
-safeSign pm t ss = coerce . safeSignRaw pm (Just t) ss . serialize' minBound
+safeSign pm t ss = coerce . safeSignRaw pm (Just t) ss . serialize' byronProtVer
 
 safeSignRaw ::
   ProtocolMagicId ->
@@ -198,7 +200,7 @@ verifySignature ::
 verifySignature toEnc pm tag vk x sig =
   verifySignatureRaw
     vk
-    (signTag pm tag <> (BSL.toStrict . serializeEncoding minBound $ toEnc x))
+    (signTag pm tag <> BSL.toStrict (serializeEncoding byronProtVer $ toEnc x))
     (coerce sig)
 
 -- | Verify a signature

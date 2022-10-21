@@ -25,6 +25,7 @@ import Cardano.Ledger.Binary
     Decoded (..),
     FromCBOR,
     ToCBOR,
+    byronProtVer,
     serialize',
   )
 import Cardano.Prelude
@@ -55,7 +56,7 @@ redeemSign ::
   RedeemSigningKey ->
   a ->
   RedeemSignature a
-redeemSign pm tag k = coerce . redeemSignRaw pm (Just tag) k . serialize' minBound
+redeemSign pm tag k = coerce . redeemSignRaw pm (Just tag) k . serialize' byronProtVer
 
 -- | Alias for constructor
 redeemSignRaw ::
