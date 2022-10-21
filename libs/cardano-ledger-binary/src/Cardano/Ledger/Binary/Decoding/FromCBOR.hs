@@ -334,10 +334,10 @@ instance FromCBOR a => FromCBOR (SMaybe.StrictMaybe a) where
   fromCBOR = SMaybe.maybeToStrictMaybe <$> decodeMaybe fromCBOR
   dropCBOR _ = () <$ decodeMaybe (dropCBOR (Proxy @a))
 
-instance (Ord a, FromCBOR a) => FromCBOR (SSeq.StrictSeq a) where
+instance FromCBOR a => FromCBOR (SSeq.StrictSeq a) where
   fromCBOR = decodeStrictSeq fromCBOR
 
-instance (Ord a, FromCBOR a) => FromCBOR (Seq.Seq a) where
+instance FromCBOR a => FromCBOR (Seq.Seq a) where
   fromCBOR = decodeSeq fromCBOR
 
 instance (Ord a, FromCBOR a) => FromCBOR (Set.Set a) where

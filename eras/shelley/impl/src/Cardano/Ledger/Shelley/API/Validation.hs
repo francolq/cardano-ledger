@@ -25,12 +25,12 @@ where
 
 import Cardano.Ledger.BHeaderView (BHeaderView)
 import Cardano.Ledger.BaseTypes (Globals (..), ShelleyBase)
+import Cardano.Ledger.Binary (ToCBORGroup)
 import Cardano.Ledger.Block (Block)
 import qualified Cardano.Ledger.Chain as STS
 import Cardano.Ledger.Core
 import qualified Cardano.Ledger.Crypto as CC (Crypto)
 import Cardano.Ledger.Keys (DSignable, Hash)
-import Cardano.Ledger.Serialization (ToCBORGroup)
 import Cardano.Ledger.Shelley (ShelleyEra)
 import Cardano.Ledger.Shelley.LedgerState (NewEpochState)
 import qualified Cardano.Ledger.Shelley.LedgerState as LedgerState

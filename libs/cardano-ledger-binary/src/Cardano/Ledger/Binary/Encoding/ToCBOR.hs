@@ -758,10 +758,10 @@ instance (Ord k, ToCBOR k, ToCBOR v) => ToCBOR (Map.Map k v) where
 instance (Ord a, ToCBOR a) => ToCBOR (Set.Set a) where
   toCBOR = encodeSet toCBOR
 
-instance (Ord a, ToCBOR a) => ToCBOR (Seq.Seq a) where
+instance ToCBOR a => ToCBOR (Seq.Seq a) where
   toCBOR = encodeSeq toCBOR
 
-instance (Ord a, ToCBOR a) => ToCBOR (SSeq.StrictSeq a) where
+instance ToCBOR a => ToCBOR (SSeq.StrictSeq a) where
   toCBOR = toCBOR . SSeq.fromStrict
 
 instance

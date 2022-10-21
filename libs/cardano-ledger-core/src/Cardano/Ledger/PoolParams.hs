@@ -16,14 +16,6 @@ module Cardano.Ledger.PoolParams
   )
 where
 
-import Cardano.Binary
-  ( Case (..),
-    FromCBOR (fromCBOR),
-    Size,
-    ToCBOR (..),
-    encodeListLen,
-    szCases,
-  )
 import Cardano.Ledger.Address (RewardAcnt (..))
 import Cardano.Ledger.BaseTypes
   ( DnsName,
@@ -35,6 +27,21 @@ import Cardano.Ledger.BaseTypes
     maybeToStrictMaybe,
     strictMaybeToMaybe,
   )
+import Cardano.Ledger.Binary
+  ( CBORGroup (..),
+    Case (..),
+    FromCBOR (fromCBOR),
+    FromCBORGroup (..),
+    Size,
+    ToCBOR (..),
+    ToCBORGroup (..),
+    decodeNullMaybe,
+    decodeRecordNamed,
+    decodeRecordSum,
+    encodeListLen,
+    encodeNullMaybe,
+    szCases,
+  )
 import Cardano.Ledger.Coin (Coin (..))
 import qualified Cardano.Ledger.Crypto as CC
 import Cardano.Ledger.Keys
@@ -44,23 +51,6 @@ import Cardano.Ledger.Keys
     VerKeyVRF,
   )
 import Cardano.Ledger.Orphans ()
-import Cardano.Ledger.Serialization
-  ( CBORGroup (..),
-    CborSeq (..),
-    FromCBORGroup (..),
-    ToCBORGroup (..),
-    decodeNullMaybe,
-    decodeRecordNamed,
-    decodeRecordSum,
-    decodeSet,
-    decodeStrictSeq,
-    encodeFoldable,
-    encodeNullMaybe,
-    ipv4FromCBOR,
-    ipv4ToCBOR,
-    ipv6FromCBOR,
-    ipv6ToCBOR,
-  )
 import Control.DeepSeq (NFData ())
 import Data.Aeson (FromJSON (..), ToJSON (..), Value, (.!=), (.:), (.:?), (.=))
 import qualified Data.Aeson as Aeson
@@ -72,7 +62,6 @@ import Data.Foldable (asum)
 import Data.IP (IPv4, IPv6)
 import Data.Proxy (Proxy (..))
 import Data.Sequence.Strict (StrictSeq)
-import qualified Data.Sequence.Strict as StrictSeq
 import Data.Set (Set)
 import qualified Data.Text.Encoding as Text
 import Data.Word (Word8)
@@ -137,11 +126,15 @@ instance FromJSON StakePoolRelay where
           <*> obj .:? "IPv6" .!= SNothing
       parser2 = Aeson.withObject "SingleHostName" $ \obj ->
         SingleHostName
-          <$> obj .:? "port" .!= SNothing
-          <*> obj .: "dnsName"
+          <$> obj
+            .:? "port"
+            .!= SNothing
+          <*> obj
+            .: "dnsName"
       parser3 = Aeson.withObject "MultiHostName" $ \obj ->
         MultiHostName
-          <$> obj .: "dnsName"
+          <$> obj
+            .: "dnsName"
 
 instance ToJSON StakePoolRelay where
   toJSON (SingleHostAddr port ipv4 ipv6) =
@@ -178,8 +171,8 @@ instance ToCBOR StakePoolRelay where
     encodeListLen 4
       <> toCBOR (0 :: Word8)
       <> encodeNullMaybe toCBOR (strictMaybeToMaybe p)
-      <> encodeNullMaybe ipv4ToCBOR (strictMaybeToMaybe ipv4)
-      <> encodeNullMaybe ipv6ToCBOR (strictMaybeToMaybe ipv6)
+      <> encodeNullMaybe toCBOR (strictMaybeToMaybe ipv4)
+      <> encodeNullMaybe toCBOR (strictMaybeToMaybe ipv6)
   toCBOR (SingleHostName p n) =
     encodeListLen 3
       <> toCBOR (1 :: Word8)
@@ -196,8 +189,8 @@ instance FromCBOR StakePoolRelay where
       0 ->
         (\x y z -> (4, SingleHostAddr x y z))
           <$> (maybeToStrictMaybe <$> decodeNullMaybe fromCBOR)
-          <*> (maybeToStrictMaybe <$> decodeNullMaybe ipv4FromCBOR)
-          <*> (maybeToStrictMaybe <$> decodeNullMaybe ipv6FromCBOR)
+          <*> (maybeToStrictMaybe <$> decodeNullMaybe fromCBOR)
+          <*> (maybeToStrictMaybe <$> decodeNullMaybe fromCBOR)
       1 ->
         (\x y -> (3, SingleHostName x y))
           <$> (maybeToStrictMaybe <$> decodeNullMaybe fromCBOR)
@@ -245,15 +238,24 @@ instance CC.Crypto c => FromJSON (PoolParams c) where
   parseJSON =
     Aeson.withObject "PoolParams" $ \obj ->
       PoolParams
-        <$> obj .: "publicKey" -- TODO publicKey is an unfortunate name, should be poolId
-        <*> obj .: "vrf"
-        <*> obj .: "pledge"
-        <*> obj .: "cost"
-        <*> obj .: "margin"
-        <*> obj .: "rewardAccount"
-        <*> obj .: "owners"
-        <*> obj .: "relays"
-        <*> obj .: "metadata"
+        <$> obj
+          .: "publicKey" -- TODO publicKey is an unfortunate name, should be poolId
+        <*> obj
+          .: "vrf"
+        <*> obj
+          .: "pledge"
+        <*> obj
+          .: "cost"
+        <*> obj
+          .: "margin"
+        <*> obj
+          .: "rewardAccount"
+        <*> obj
+          .: "owners"
+        <*> obj
+          .: "relays"
+        <*> obj
+          .: "metadata"
 
 instance ToCBOR PoolMetadata where
   toCBOR (PoolMetadata u h) =
@@ -290,8 +292,8 @@ instance
       <> toCBOR (_poolCost poolParams)
       <> toCBOR (_poolMargin poolParams)
       <> toCBOR (_poolRAcnt poolParams)
-      <> encodeFoldable (_poolOwners poolParams)
-      <> toCBOR (CborSeq (StrictSeq.fromStrict (_poolRelays poolParams)))
+      <> toCBOR (_poolOwners poolParams)
+      <> toCBOR (_poolRelays poolParams)
       <> encodeNullMaybe toCBOR (strictMaybeToMaybe (_poolMD poolParams))
 
   encodedGroupSizeExpr size' proxy =
@@ -330,8 +332,8 @@ instance
     cost <- fromCBOR
     margin <- fromCBOR
     ra <- fromCBOR
-    owners <- decodeSet fromCBOR
-    relays <- decodeStrictSeq fromCBOR
+    owners <- fromCBOR
+    relays <- fromCBOR
     md <- decodeNullMaybe fromCBOR
     pure $
       PoolParams

@@ -118,8 +118,8 @@ unsafeMakeSafeHash = SafeHash
 --   of making explicit instances, we almost always use a newtype (around a type @S@)
 --   where their is already an instance @(SafeToHash S)@. In that case the newtype
 --   has its SafeToHash instance derived using newtype deriving. The prime example of @s@ is 'MemoBytes'.
---   The only exceptions are the legacy Shelley types: @Metadata@ and @Tx@, that preserve their
---   serialization bytes
+--   The only exceptions are the legacy Shelley types: @Metadata@ and @ShelleyTx@, that
+--   preserve their serialization bytes
 --   using a different mechanism than the use of 'MemoBytes'.  'SafeToHash' is a superclass
 --   requirement of the classes 'HashAnnotated' and 'HashWithCrypto' (below) which
 --   provide more convenient ways to construct SafeHashes than using 'makeHashWithExplicitProxys'.

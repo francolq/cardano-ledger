@@ -27,24 +27,17 @@ module Cardano.Ledger.Shelley.Genesis
   )
 where
 
-import Cardano.Binary (FromCBOR (..), ToCBOR (..), encodeListLen)
 import qualified Cardano.Crypto.Hash.Class as Crypto
 import Cardano.Crypto.KES.Class (totalPeriodsKES)
 import Cardano.Ledger.Address
 import Cardano.Ledger.BaseTypes
+import Cardano.Ledger.Binary (FromCBOR (..), ToCBOR (..), decodeRecordNamed, encodeListLen)
 import Cardano.Ledger.Coin (Coin)
 import Cardano.Ledger.Core
 import Cardano.Ledger.Crypto (HASH, KES)
 import qualified Cardano.Ledger.Crypto as CC (Crypto)
 import Cardano.Ledger.Keys
 import Cardano.Ledger.SafeHash (unsafeMakeSafeHash)
-import Cardano.Ledger.Serialization
-  ( decodeRecordNamed,
-    mapFromCBOR,
-    mapToCBOR,
-    utcTimeFromCBOR,
-    utcTimeToCBOR,
-  )
 import Cardano.Ledger.Shelley.PParams
 import Cardano.Ledger.Shelley.StabilityWindow
 import Cardano.Ledger.Shelley.TxBody (PoolParams (..))
@@ -196,20 +189,33 @@ instance Era era => FromJSON (ShelleyGenesis era) where
     Aeson.withObject "ShelleyGenesis" $ \obj ->
       ShelleyGenesis
         <$> (forceUTCTime <$> obj .: "systemStart")
-        <*> obj .: "networkMagic"
-        <*> obj .: "networkId"
-        <*> obj .: "activeSlotsCoeff"
-        <*> obj .: "securityParam"
-        <*> obj .: "epochLength"
-        <*> obj .: "slotsPerKESPeriod"
-        <*> obj .: "maxKESEvolutions"
-        <*> obj .: "slotLength"
-        <*> obj .: "updateQuorum"
-        <*> obj .: "maxLovelaceSupply"
-        <*> obj .: "protocolParams"
+        <*> obj
+        .: "networkMagic"
+        <*> obj
+        .: "networkId"
+        <*> obj
+        .: "activeSlotsCoeff"
+        <*> obj
+        .: "securityParam"
+        <*> obj
+        .: "epochLength"
+        <*> obj
+        .: "slotsPerKESPeriod"
+        <*> obj
+        .: "maxKESEvolutions"
+        <*> obj
+        .: "slotLength"
+        <*> obj
+        .: "updateQuorum"
+        <*> obj
+        .: "maxLovelaceSupply"
+        <*> obj
+        .: "protocolParams"
         <*> (forceElemsToWHNF <$> obj .: "genDelegs")
         <*> (forceElemsToWHNF <$> obj .: "initialFunds")
-        <*> obj .:? "staking" .!= emptyGenesisStaking
+        <*> obj
+        .:? "staking"
+        .!= emptyGenesisStaking
     where
       forceUTCTime date =
         let !day = utctDay date
@@ -256,7 +262,7 @@ instance Era era => ToCBOR (ShelleyGenesis era) where
         sgStaking
       } =
       encodeListLen 15
-        <> utcTimeToCBOR sgSystemStart
+        <> toCBOR sgSystemStart
         <> toCBOR sgNetworkMagic
         <> toCBOR sgNetworkId
         <> boundedRationalToCBOR sgActiveSlotsCoeff
@@ -268,14 +274,14 @@ instance Era era => ToCBOR (ShelleyGenesis era) where
         <> toCBOR sgUpdateQuorum
         <> toCBOR sgMaxLovelaceSupply
         <> toCBOR sgProtocolParams
-        <> mapToCBOR sgGenDelegs
+        <> toCBOR sgGenDelegs
         <> toCBOR sgInitialFunds
         <> toCBOR sgStaking
 
 instance Era era => FromCBOR (ShelleyGenesis era) where
   fromCBOR = do
     decodeRecordNamed "ShelleyGenesis" (const 15) $ do
-      sgSystemStart <- utcTimeFromCBOR
+      sgSystemStart <- fromCBOR
       sgNetworkMagic <- fromCBOR
       sgNetworkId <- fromCBOR
       sgActiveSlotsCoeff <- boundedRationalFromCBOR
@@ -287,7 +293,7 @@ instance Era era => FromCBOR (ShelleyGenesis era) where
       sgUpdateQuorum <- fromCBOR
       sgMaxLovelaceSupply <- fromCBOR
       sgProtocolParams <- fromCBOR
-      sgGenDelegs <- mapFromCBOR
+      sgGenDelegs <- fromCBOR
       sgInitialFunds <- fromCBOR
       sgStaking <- fromCBOR
       pure $

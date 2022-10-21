@@ -22,11 +22,6 @@ module Cardano.Ledger.Shelley.Rules.Delegs
   )
 where
 
-import Cardano.Binary
-  ( FromCBOR (..),
-    ToCBOR (..),
-    encodeListLen,
-  )
 import Cardano.Ledger.Address (mkRwdAcnt)
 import Cardano.Ledger.BaseTypes
   ( ShelleyBase,
@@ -34,6 +29,11 @@ import Cardano.Ledger.BaseTypes
     invalidKey,
     mkCertIxPartial,
     networkId,
+  )
+import Cardano.Ledger.Binary
+  ( FromCBOR (..),
+    ToCBOR (..),
+    encodeListLen,
   )
 import Cardano.Ledger.Coin (Coin)
 import Cardano.Ledger.Core

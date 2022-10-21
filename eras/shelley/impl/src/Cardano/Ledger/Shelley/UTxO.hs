@@ -46,10 +46,16 @@ module Cardano.Ledger.Shelley.UTxO
   )
 where
 
-import Cardano.Binary (FromCBOR (..), ToCBOR (..))
 import qualified Cardano.Crypto.Hash as CH
 import Cardano.Ledger.Address (Addr (..))
 import Cardano.Ledger.BaseTypes (strictMaybeToMaybe)
+import Cardano.Ledger.Binary
+  ( FromCBOR (..),
+    FromSharedCBOR (Share, fromSharedCBOR),
+    Interns,
+    ToCBOR (..),
+    decodeMapNoDuplicates
+  )
 import Cardano.Ledger.Block (txid)
 import Cardano.Ledger.Coin (Coin, CompactForm (CompactCoin))
 import Cardano.Ledger.Compactible (Compactible (..))
@@ -91,7 +97,6 @@ import Cardano.Ledger.Val ((<+>), (<×>))
 import qualified Cardano.Ledger.Val as Val
 import Control.DeepSeq (NFData)
 import Control.Monad ((<$!>))
-import Data.Coders (decodeMapNoDuplicates, encodeMap)
 import Data.Coerce (coerce)
 import Data.Default.Class (Default)
 import Data.Foldable (Foldable (fold), foldMap', toList)
@@ -102,7 +107,6 @@ import qualified Data.Maybe as Maybe
 import Data.Monoid (Sum (..))
 import Data.Set (Set)
 import qualified Data.Set as Set
-import Data.Sharing (FromSharedCBOR (Share, fromSharedCBOR), Interns)
 import Data.Typeable (Typeable)
 import GHC.Generics (Generic)
 import GHC.Records (HasField (..))
@@ -125,8 +129,7 @@ deriving newtype instance
 
 deriving newtype instance Crypto (EraCrypto era) => Monoid (UTxO era)
 
-instance (Era era, ToCBOR (TxOut era)) => ToCBOR (UTxO era) where
-  toCBOR = encodeMap toCBOR toCBOR . unUTxO
+deriving newtype instance (Era era, ToCBOR (TxOut era)) => ToCBOR (UTxO era)
 
 instance
   ( Crypto (EraCrypto era),
@@ -373,7 +376,8 @@ produced ::
 produced pp isNewPool txBody =
   balance (txouts txBody)
     <+> Val.inject
-      ( txBody ^. feeTxBodyL
+      ( txBody
+          ^. feeTxBodyL
           <+> totalDeposits pp isNewPool (toList $ txBody ^. certsTxBodyL)
       )
 

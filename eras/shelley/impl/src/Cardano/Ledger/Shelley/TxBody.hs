@@ -62,7 +62,7 @@ module Cardano.Ledger.Shelley.TxBody
   )
 where
 
-import Cardano.Binary
+import Cardano.Ledger.Binary
   ( Annotator (..),
     FromCBOR (fromCBOR),
     ToCBOR (..),
@@ -81,11 +81,6 @@ import Cardano.Ledger.Keys.WitVKey
 import Cardano.Ledger.MemoBytes (Mem, MemoBytes (..), MemoHashIndex, memoBytes, pattern Memo)
 import Cardano.Ledger.PoolParams
 import Cardano.Ledger.SafeHash (HashAnnotated (..), SafeToHash)
-import Cardano.Ledger.Serialization
-  ( decodeSet,
-    decodeStrictSeq,
-    encodeFoldable,
-  )
 import Cardano.Ledger.Shelley.Core (ShelleyEraTxBody (..), Wdrl (..))
 import Cardano.Ledger.Shelley.Delegation.Certificates
   ( DCert (..),
@@ -105,7 +100,7 @@ import Cardano.Ledger.TxIn (TxIn)
 import Cardano.Ledger.Val (DecodeNonNegative (..))
 import Control.DeepSeq (NFData)
 import qualified Data.ByteString.Lazy as BSL
-import Data.Coders
+import Cardano.Ledger.Binary.Coders
   ( Decode (..),
     Density (..),
     Encode (..),
@@ -207,9 +202,9 @@ boxBody ::
   ) =>
   Word ->
   Field (TxBodyRaw era)
-boxBody 0 = field (\x tx -> tx {_inputsX = x}) (D (decodeSet fromCBOR))
-boxBody 1 = field (\x tx -> tx {_outputsX = x}) (D (decodeStrictSeq fromCBOR))
-boxBody 4 = field (\x tx -> tx {_certsX = x}) (D (decodeStrictSeq fromCBOR))
+boxBody 0 = field (\x tx -> tx {_inputsX = x}) From
+boxBody 1 = field (\x tx -> tx {_outputsX = x}) From
+boxBody 4 = field (\x tx -> tx {_certsX = x}) From
 boxBody 5 = field (\x tx -> tx {_wdrlsX = x}) From
 boxBody 2 = field (\x tx -> tx {_txfeeX = x}) From
 boxBody 3 = field (\x tx -> tx {_ttlX = x}) From
@@ -226,11 +221,11 @@ txSparse ::
   Encode ('Closed 'Sparse) (TxBodyRaw era)
 txSparse (TxBodyRaw input output cert wdrl fee ttl update hash) =
   Keyed (\i o f t c w u h -> TxBodyRaw i o c w f t u h)
-    !> Key 0 (E encodeFoldable input) -- We don't have to send these in TxBodyRaw order
-    !> Key 1 (E encodeFoldable output) -- Just hack up a fake constructor with the lambda.
+    !> Key 0 (To input) -- We don't have to send these in TxBodyRaw order
+    !> Key 1 (To output) -- Just hack up a fake constructor with the lambda.
     !> Key 2 (To fee)
     !> Key 3 (To ttl)
-    !> Omit null (Key 4 (E encodeFoldable cert))
+    !> Omit null (Key 4 (To cert))
     !> Omit (null . unWdrl) (Key 5 (To wdrl))
     !> encodeKeyedStrictMaybe 6 update
     !> encodeKeyedStrictMaybe 7 hash
