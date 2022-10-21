@@ -10,7 +10,7 @@ module Cardano.Crypto.Signing.Tag
   )
 where
 
-import Cardano.Binary (Annotated (..), serialize')
+import Cardano.Ledger.Binary (Annotated (..), serialize')
 import Cardano.Crypto.ProtocolMagic (ProtocolMagicId (..))
 import Cardano.Crypto.Signing.VerificationKey (VerificationKey (..))
 import qualified Cardano.Crypto.Wallet as CC
@@ -67,7 +67,7 @@ signTagDecoded = signTagRaw . annotation
 -- | Get magic bytes corresponding to a 'SignTag'. Guaranteed to be different
 --   (and begin with a different byte) for different tags.
 signTag :: ProtocolMagicId -> SignTag -> ByteString
-signTag = signTagRaw . serialize' . unProtocolMagicId
+signTag = signTagRaw . serialize' minBound . unProtocolMagicId
 
 signTagRaw :: ByteString -> SignTag -> ByteString
 signTagRaw network = \case

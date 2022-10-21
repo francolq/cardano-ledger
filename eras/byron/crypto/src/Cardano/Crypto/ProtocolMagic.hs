@@ -20,7 +20,7 @@ module Cardano.Crypto.ProtocolMagic
   )
 where
 
-import Cardano.Binary
+import Cardano.Ledger.Binary
   ( Annotated (..),
     FromCBOR (..),
     ToCBOR (..),
@@ -80,8 +80,10 @@ instance A.ToJSON ProtocolMagic where
 instance A.FromJSON ProtocolMagic where
   parseJSON = A.withObject "ProtocolMagic" $ \o ->
     AProtocolMagic
-      <$> o .: "pm"
-      <*> o .: "requiresNetworkMagic"
+      <$> o
+      .: "pm"
+      <*> o
+      .: "requiresNetworkMagic"
 
 -- Canonical JSON instances
 instance Monad m => ToJSON m ProtocolMagicId where
