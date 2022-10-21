@@ -18,7 +18,7 @@ import Byron.Spec.Ledger.Core
     VKeyGenesis (..),
   )
 import Byron.Spec.Ledger.Delegation (DCert (..), DSEnv (..), dcertGen, delegate, delegator)
-import Cardano.Binary (Annotated (..), serialize')
+import Cardano.Ledger.Binary (Annotated (..), serialize', byronProtVer)
 import Cardano.Chain.Common (hashKey)
 import qualified Cardano.Chain.Common as Concrete
 import qualified Cardano.Chain.Delegation as Concrete
@@ -70,7 +70,7 @@ ts_prop_elaboratedCertsValid =
         Just cert ->
           let concreteCert = elaborateDCertAnnotated pm cert
            in assert $
-                Concrete.Certificate.isValid (Annotated pm (serialize' pm)) concreteCert
+                Concrete.Certificate.isValid (Annotated pm (serialize' byronProtVer pm)) concreteCert
   where
     env =
       DSEnv
@@ -107,8 +107,8 @@ elaborateDCertAnnotated pm = annotateDCert . elaborateDCert pm
     annotateDCert :: Concrete.Certificate -> Concrete.ACertificate ByteString
     annotateDCert cert =
       cert
-        { Concrete.Certificate.aEpoch = Annotated omega (serialize' omega),
-          Concrete.Certificate.annotation = serialize' cert
+        { Concrete.Certificate.aEpoch = Annotated omega (serialize' byronProtVer omega),
+          Concrete.Certificate.annotation = serialize' byronProtVer cert
         }
       where
         omega = Concrete.Certificate.epoch cert

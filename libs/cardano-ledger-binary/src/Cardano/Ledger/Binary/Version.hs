@@ -27,7 +27,7 @@ where
 import Data.Proxy (Proxy (..))
 import GHC.TypeLits (KnownNat, natVal, type (<=))
 #if __GLASGOW_HASKELL__ < 900
--- This import is dedundant wih ghc-9.2.
+-- This import is redundant wih ghc-9.2.
 import Numeric.Natural (Natural)
 #endif
 

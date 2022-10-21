@@ -10,7 +10,7 @@ module Cardano.Chain.UTxO.UTxOConfiguration
   )
 where
 
-import Cardano.Binary
+import Cardano.Ledger.Binary
   ( FromCBOR (..),
     ToCBOR (..),
     encodeListLen,

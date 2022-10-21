@@ -340,10 +340,10 @@ ifDecoderVersionAtLeast atLeast newerDecoder olderDecoder = do
 -- Error reporting
 --------------------------------------------------------------------------------
 
-cborError :: DecoderError -> Decoder s a
+cborError :: B.Buildable e => e -> Decoder s a
 cborError = fail . showDecoderError
 
-showDecoderError :: DecoderError -> String
+showDecoderError :: B.Buildable e => e -> String
 showDecoderError = formatToString build
 
 -- | Report an error when a numeric key of the type constructor doesn't match.
@@ -352,7 +352,7 @@ invalidKey k = cborError $ DecoderErrorCustom "Not a valid key:" (Text.pack $ sh
 
 -- | Convert an 'Either'-encoded failure to a 'cborg' decoder failure
 toCborError :: B.Buildable e => Either e a -> Decoder s a
-toCborError = either (fail . formatToString build) pure
+toCborError = either cborError pure
 
 -- | `Decoder` for `Rational`. Versions variance:
 --

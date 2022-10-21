@@ -17,7 +17,7 @@ module Cardano.Chain.Genesis.Delegation
   )
 where
 
-import Cardano.Binary
+import Cardano.Ledger.Binary
 import Cardano.Chain.Common (KeyHash, hashKey)
 import Cardano.Chain.Delegation.Certificate
   ( ACertificate (delegateVK, issuerVK),

@@ -29,7 +29,7 @@ module Test.Cardano.Chain.Common.Gen
   )
 where
 
-import Cardano.Binary (ToCBOR)
+import Cardano.Ledger.Binary (ToCBOR)
 import Cardano.Chain.Common
   ( AddrAttributes (..),
     AddrSpendingData (..),
