@@ -69,24 +69,22 @@ import Cardano.Crypto.Hash
 import Cardano.Crypto.Util (SignableRepresentation (..))
 import qualified Cardano.Crypto.VRF as VRF
 import Cardano.Ledger.Binary
-  ( Decoder,
+  ( CBORGroup (..),
+    Decoder,
     DecoderError (..),
     Encoding,
     FromCBOR (fromCBOR),
+    FromCBORGroup (..),
     ToCBOR (toCBOR),
+    ToCBORGroup (..),
     cborError,
+    decodeRecordSum,
     encodeListLen,
     encodedSizeExpr,
     invalidKey,
-    decodeRecordSum,
   )
 import Cardano.Ledger.Keys (KeyHash, KeyRole (..))
 import Cardano.Ledger.NonIntegral (ln')
-import Cardano.Ledger.Serialization
-  ( CBORGroup (..),
-    FromCBORGroup (..),
-    ToCBORGroup (..),
-  )
 import Cardano.Slotting.EpochInfo (EpochInfo, hoistEpochInfo)
 import Cardano.Slotting.Time (SystemStart)
 import Control.DeepSeq (NFData)

@@ -61,13 +61,15 @@ module Cardano.Ledger.Serialization
 where
 
 import Cardano.Ledger.Binary
-  ( Decoder,
+  ( CBORGroup (..),
+    Decoder,
     DecoderError (..),
     Encoding,
     FromCBOR (..),
-    Size,
+    FromCBORGroup (..),
     Sized (..),
     ToCBOR (..),
+    ToCBORGroup (..),
     cborError,
     decodeFraction,
     decodeIPv4,
@@ -89,15 +91,16 @@ import Cardano.Ledger.Binary
     encodeNullMaybe,
     encodeTag,
     enforceVersionDecoder,
+    groupRecord,
     ipv4ToBytes,
     ipv6ToBytes,
+    listLenInt,
     mkSized,
     natVersion,
     runByteBuilder,
     sizedDecoder,
     toSizedL,
     translateViaCBORAnnotator,
-    withWordSize,
   )
 import Cardano.Ledger.Binary.Coders
   ( decodeRecordNamed,
@@ -118,43 +121,7 @@ import Data.Ratio (Ratio, denominator, numerator)
 import Data.Time (UTCTime (..))
 import Data.Time.Calendar.OrdinalDate (fromOrdinalDate, toOrdinalDate)
 import Data.Time.Clock (diffTimeToPicoseconds, picosecondsToDiffTime)
-import Data.Typeable
 import Network.Socket (HostAddress6)
-import Prelude
-
-class Typeable a => ToCBORGroup a where
-  toCBORGroup :: a -> Encoding
-  encodedGroupSizeExpr ::
-    (forall x. ToCBOR x => Proxy x -> Size) ->
-    Proxy a ->
-    Size
-
-  listLen :: a -> Word
-
-  -- | an upper bound for 'listLen', used in 'Size' expressions.
-  listLenBound :: Proxy a -> Word
-
-listLenInt :: ToCBORGroup a => a -> Int
-listLenInt x = fromIntegral (listLen x)
-
-newtype CBORGroup a = CBORGroup {unCBORGroup :: a}
-
-instance ToCBORGroup a => ToCBOR (CBORGroup a) where
-  toCBOR (CBORGroup x) = encodeListLen (listLen x) <> toCBORGroup x
-  encodedSizeExpr size proxy =
-    fromInteger (withWordSize (listLenBound proxy'))
-      + encodedGroupSizeExpr size proxy'
-    where
-      proxy' = unCBORGroup <$> proxy
-
-class Typeable a => FromCBORGroup a where
-  fromCBORGroup :: Decoder s a
-
-instance (FromCBORGroup a, ToCBORGroup a) => FromCBOR (CBORGroup a) where
-  fromCBOR = CBORGroup <$> groupRecord
-
-groupRecord :: forall a s. (ToCBORGroup a, FromCBORGroup a) => Decoder s a
-groupRecord = decodeRecordNamed "CBORGroup" (fromIntegral . toInteger . listLen) fromCBORGroup
 
 mapToCBOR :: (ToCBOR a, ToCBOR b) => Map a b -> Encoding
 mapToCBOR = encodeMap toCBOR toCBOR

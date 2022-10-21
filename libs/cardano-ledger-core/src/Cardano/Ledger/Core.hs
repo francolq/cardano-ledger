@@ -94,7 +94,9 @@ import Cardano.Ledger.Binary
     Interns,
     MaxVersion,
     MinVersion,
+    Sized (sizedValue),
     ToCBOR (..),
+    ToCBORGroup (..),
     Version,
     mkSized,
     natVersion,
@@ -111,7 +113,6 @@ import Cardano.Ledger.Keys.WitVKey (WitVKey)
 import Cardano.Ledger.Language (Language)
 import Cardano.Ledger.Rewards (Reward (..), RewardType (..))
 import Cardano.Ledger.SafeHash (HashAnnotated (..), SafeToHash (..))
-import Cardano.Ledger.Serialization (Sized (sizedValue), ToCBORGroup (..))
 import Cardano.Ledger.TxIn (TxIn (..))
 import Cardano.Ledger.Val (DecodeNonNegative, Val (..))
 import Control.DeepSeq (NFData)

@@ -27,6 +27,7 @@ import Cardano.Ledger.Binary
   ( Annotator (..),
     FromCBOR (fromCBOR),
     ToCBOR (..),
+    ToCBORGroup (..),
     annotatorSlice,
     decodeRecordNamed,
     encodeListLen,
@@ -35,7 +36,6 @@ import Cardano.Ledger.Binary
   )
 import Cardano.Ledger.Core
 import Cardano.Ledger.SafeHash (hashAnnotated)
-import Cardano.Ledger.Serialization (ToCBORGroup (..))
 import Cardano.Ledger.TxIn (TxId (..), TxIn (..))
 import qualified Data.ByteString.Lazy as BSL
 import Data.Foldable (toList)
