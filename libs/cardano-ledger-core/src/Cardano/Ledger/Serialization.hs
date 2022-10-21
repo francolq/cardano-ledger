@@ -69,7 +69,6 @@ import Cardano.Ledger.Binary
     Sized (..),
     ToCBOR (..),
     cborError,
-    decodeAnnotator,
     decodeFraction,
     decodeIPv4,
     decodeIPv6,

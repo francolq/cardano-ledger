@@ -22,15 +22,15 @@ module Cardano.Ledger.Credential
   )
 where
 
-import Cardano.Binary
-  ( FromCBOR (..),
-    ToCBOR (..),
-    encodeListLen,
-  )
 import Cardano.Ledger.BaseTypes
   ( CertIx (..),
     TxIx (..),
     invalidKey,
+  )
+import Cardano.Ledger.Binary
+  ( FromCBOR (..),
+    ToCBOR (..),
+    encodeListLen,
   )
 import qualified Cardano.Ledger.Crypto as CC (Crypto)
 import Cardano.Ledger.Hashes (ScriptHash)

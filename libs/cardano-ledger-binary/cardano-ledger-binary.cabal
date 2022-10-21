@@ -57,6 +57,7 @@ library
                    , cardano-binary
                    , cardano-crypto-class
                    , cardano-crypto-praos >= 2.1.0.0
+                   , cardano-slotting
                    , cardano-strict-containers
                    , cborg
                    , containers
@@ -70,6 +71,7 @@ library
                    , nothunks
                    , primitive
                    , recursion-schemes
+                   , serialise
                    , tagged
                    , text
                    , time
@@ -95,8 +97,9 @@ library testlib
                    , cardano-ledger-binary
                    , cardano-crypto-class
                    , cardano-crypto-tests
-                   , cardano-strict-containers
                    , cardano-prelude-test
+                   , cardano-strict-containers
+                   , cardano-slotting
                    , cborg
                    , containers
                    , formatting
@@ -133,6 +136,7 @@ test-suite tests
                    , cardano-crypto-class
                    , cardano-crypto-praos
                    , cardano-prelude-test
+                   , cardano-slotting
                    , cardano-strict-containers
                    , cborg
                    , containers

@@ -102,8 +102,6 @@ import qualified Cardano.Protocol.TPraos.OCert as TP
 import qualified Cardano.Protocol.TPraos.Rules.Overlay as STS
 import qualified Cardano.Protocol.TPraos.Rules.Prtcl as STS (PrtclState)
 import qualified Cardano.Protocol.TPraos.Rules.Tickn as STS
-import Cardano.Slotting.Block (BlockNo (..))
-import Cardano.Slotting.Slot (EpochNo (..), EpochSize (..), SlotNo (..))
 import Control.State.Transition (STS (State))
 import qualified Data.ByteString.Char8 as BS
 import Data.Coerce (coerce)
@@ -344,14 +342,6 @@ instance Arbitrary Coin where
 
 instance Arbitrary DeltaCoin where
   arbitrary = DeltaCoin <$> choose (-1000, 1000)
-
-instance Arbitrary SlotNo where
-  -- Cannot be negative even though it is an 'Integer'
-  arbitrary = SlotNo <$> choose (1, 100000)
-
-instance Arbitrary EpochNo where
-  -- Cannot be negative even though it is an 'Integer'
-  arbitrary = EpochNo <$> choose (1, 100000)
 
 instance CC.Crypto c => Arbitrary (Addr c) where
   arbitrary = oneof [genShelleyAddress, genByronAddress]

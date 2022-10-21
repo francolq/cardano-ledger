@@ -36,9 +36,13 @@ import qualified Cardano.Crypto.VRF.Praos as Praos
 import Cardano.Crypto.VRF.Simple (SimpleVRF)
 import Cardano.Ledger.Binary.Crypto
 import Cardano.Ledger.Binary.Decoding.Decoder
+import Cardano.Slotting.Block (BlockNo (..))
+import Cardano.Slotting.Slot (EpochNo (..), EpochSize (..), SlotNo (..), WithOrigin (..))
+import Cardano.Slotting.Time (SystemStart (..))
 import Codec.CBOR.ByteArray (ByteArray (..))
 import Codec.CBOR.ByteArray.Sliced (SlicedByteArray, fromByteArray)
 import Codec.CBOR.Term (Term (..))
+import Codec.Serialise as Serialise (Serialise (decode))
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BSL
 import qualified Data.ByteString.Short as SBS
@@ -562,3 +566,22 @@ deriving instance FromCBOR (VerKeyVRF Praos.PraosVRF)
 deriving instance FromCBOR (SignKeyVRF Praos.PraosVRF)
 
 deriving instance FromCBOR (CertVRF Praos.PraosVRF)
+
+--------------------------------------------------------------------------------
+-- Slotting
+--------------------------------------------------------------------------------
+
+instance FromCBOR SlotNo where
+  fromCBOR = fromPlainDecoder Serialise.decode
+
+instance (Serialise t, Typeable t) => FromCBOR (WithOrigin t) where
+  fromCBOR = fromPlainDecoder Serialise.decode
+
+deriving instance FromCBOR EpochNo
+
+deriving instance FromCBOR EpochSize
+
+deriving instance FromCBOR SystemStart
+
+instance FromCBOR BlockNo where
+  fromCBOR = fromPlainDecoder decode

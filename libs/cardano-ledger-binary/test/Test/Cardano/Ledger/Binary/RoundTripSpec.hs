@@ -37,6 +37,9 @@ import Cardano.Crypto.VRF.Mock (MockVRF)
 import Cardano.Crypto.VRF.Praos (PraosVRF)
 import Cardano.Crypto.VRF.Simple (SimpleVRF)
 import Cardano.Ledger.Binary
+import Cardano.Slotting.Block (BlockNo)
+import Cardano.Slotting.Slot (EpochNo, EpochSize, SlotNo, WithOrigin)
+import Cardano.Slotting.Time (SystemStart)
 import Codec.CBOR.ByteArray (ByteArray (..))
 import Codec.CBOR.ByteArray.Sliced (SlicedByteArray (..))
 import Control.Monad (forM_)
@@ -129,6 +132,13 @@ spec =
         roundTripSpec @SlicedByteArray version cborTrip
         let maybeNullTrip = mkTrip (encodeNullMaybe toCBOR) (decodeNullMaybe fromCBOR)
         roundTripSpec @(Maybe Integer) version maybeNullTrip
+        describe "Slotting" $
+          describe "Mock" $ do
+            roundTripSpec @BlockNo version cborTrip
+            roundTripSpec @SlotNo version cborTrip
+            roundTripSpec @(WithOrigin EpochNo) version cborTrip
+            roundTripSpec @EpochSize version cborTrip
+            roundTripSpec @SystemStart version cborTrip
         describe "Crypto" $ do
           describe "DSIGN" $ do
             describe "Ed25519" $ do

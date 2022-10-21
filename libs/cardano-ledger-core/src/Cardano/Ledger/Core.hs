@@ -48,7 +48,9 @@ module Cardano.Ledger.Core
     -- $segWit
     EraSegWits (..),
 
-    -- * Protocol version constraints
+    -- * Protocol version
+    eraProtVerLow,
+    eraProtVerHigh,
     ProtVerAtLeast,
     ProtVerAtMost,
     ProtVerInBounds,
@@ -81,11 +83,22 @@ module Cardano.Ledger.Core
   )
 where
 
-import Cardano.Binary (Annotator, FromCBOR (..), ToCBOR (..))
 import qualified Cardano.Crypto.Hash as Hash
 import Cardano.Ledger.Address (Addr (..), BootstrapAddress)
 import Cardano.Ledger.AuxiliaryData (AuxiliaryDataHash)
 import Cardano.Ledger.BaseTypes (ProtVer)
+import Cardano.Ledger.Binary
+  ( Annotator,
+    FromCBOR (..),
+    FromSharedCBOR (Share),
+    Interns,
+    MaxVersion,
+    MinVersion,
+    ToCBOR (..),
+    Version,
+    mkSized,
+    natVersion,
+  )
 import Cardano.Ledger.Coin (Coin)
 import Cardano.Ledger.CompactAddress (CompactAddr, compactAddr, decompactAddr, isBootstrapCompactAddr)
 import Cardano.Ledger.Compactible (Compactible (..))
@@ -98,7 +111,7 @@ import Cardano.Ledger.Keys.WitVKey (WitVKey)
 import Cardano.Ledger.Language (Language)
 import Cardano.Ledger.Rewards (Reward (..), RewardType (..))
 import Cardano.Ledger.SafeHash (HashAnnotated (..), SafeToHash (..))
-import Cardano.Ledger.Serialization (Sized (sizedValue), ToCBORGroup (..), mkSized)
+import Cardano.Ledger.Serialization (Sized (sizedValue), ToCBORGroup (..))
 import Cardano.Ledger.TxIn (TxIn (..))
 import Cardano.Ledger.Val (DecodeNonNegative, Val (..))
 import Control.DeepSeq (NFData)
@@ -112,7 +125,6 @@ import Data.Maybe (fromMaybe)
 import Data.Maybe.Strict (StrictMaybe)
 import Data.Sequence.Strict (StrictSeq)
 import Data.Set (Set)
-import Data.Sharing (FromSharedCBOR (Share), Interns)
 import Data.Typeable (Typeable)
 import Data.Void (Void, absurd)
 import Data.Word (Word64)
@@ -125,7 +137,19 @@ import NoThunks.Class (NoThunks)
 -- Era
 --------------------------------------------------------------------------------
 
-class (CC.Crypto (EraCrypto era), Typeable era, ProtVerLow era <= ProtVerHigh era) => Era era where
+class
+  ( CC.Crypto (EraCrypto era),
+    Typeable era,
+    KnownNat (ProtVerLow era),
+    KnownNat (ProtVerHigh era),
+    ProtVerLow era <= ProtVerHigh era,
+    MinVersion <= ProtVerLow era,
+    ProtVerLow era <= MaxVersion,
+    MinVersion <= ProtVerHigh era,
+    ProtVerHigh era <= MaxVersion
+  ) =>
+  Era era
+  where
   type EraCrypto era :: Type
 
   -- | Lowest major protocol version for this era
@@ -294,7 +318,7 @@ class
   -- be not needed, then serialization will have no overhead, since it is
   -- computed lazily.
   getMinCoinTxOut :: PParams era -> TxOut era -> Coin
-  getMinCoinTxOut pp txOut = getMinCoinSizedTxOut pp (mkSized txOut)
+  getMinCoinTxOut pp txOut = getMinCoinSizedTxOut pp (mkSized (eraProtVerLow @era) txOut)
 
 bootAddrTxOutF :: EraTxOut era => SimpleGetter (TxOut era) (Maybe (BootstrapAddress (EraCrypto era)))
 bootAddrTxOutF = to $ \txOut ->
@@ -658,6 +682,14 @@ type AtLeastEra (eraName :: Type -> Type) era =
 -- | Restrict the @era@ to equal to @eraName@ or come before it.
 type AtMostEra (eraName :: Type -> Type) era =
   ProtVerAtMost era (ProtVerHigh (eraName (EraCrypto era)))
+
+-- | Get the value level `Version` of the lowest major protocol version for the supplied @era@.
+eraProtVerLow :: forall era. Era era => Version
+eraProtVerLow = natVersion @(ProtVerLow era)
+
+-- | Get the value level `Version` of the highest major protocol version for the supplied @era@.
+eraProtVerHigh :: forall era. Era era => Version
+eraProtVerHigh = natVersion @(ProtVerHigh era)
 
 -- | Enforce era to be at least the specified era at the type level. In other words
 -- compiler will produce type error when applied to eras prior to the specified era.

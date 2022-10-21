@@ -7,6 +7,9 @@
 module Test.Cardano.Ledger.Binary.Arbitrary () where
 
 import Cardano.Crypto.DSIGN.Class
+import Cardano.Slotting.Block (BlockNo (..))
+import Cardano.Slotting.Slot (EpochNo (..), EpochSize (..), SlotNo (..), WithOrigin (..))
+import Cardano.Slotting.Time (SystemStart (..))
 import Codec.CBOR.ByteArray (ByteArray (..))
 import Codec.CBOR.ByteArray.Sliced (SlicedByteArray (..))
 import qualified Data.ByteString as BS
@@ -82,3 +85,16 @@ instance DSIGNAlgorithm v => Arbitrary (SigDSIGN v) where
       . rawDeserialiseSigDSIGN
       . BS.pack
       <$> vectorOf (fromIntegral n) arbitrary
+
+deriving instance Arbitrary SlotNo
+
+instance Arbitrary t => Arbitrary (WithOrigin t) where
+  arbitrary = frequency [(20, pure Origin), (80, At <$> arbitrary)]
+
+deriving instance Arbitrary EpochNo
+
+deriving instance Arbitrary EpochSize
+
+deriving instance Arbitrary SystemStart
+
+deriving instance Arbitrary BlockNo

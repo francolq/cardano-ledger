@@ -65,27 +65,27 @@ module Cardano.Ledger.BaseTypes
   )
 where
 
-import Cardano.Binary
+import Cardano.Crypto.Hash
+import Cardano.Crypto.Util (SignableRepresentation (..))
+import qualified Cardano.Crypto.VRF as VRF
+import Cardano.Ledger.Binary
   ( Decoder,
     DecoderError (..),
     Encoding,
     FromCBOR (fromCBOR),
     ToCBOR (toCBOR),
+    cborError,
     encodeListLen,
     encodedSizeExpr,
+    invalidKey,
+    decodeRecordSum,
   )
-import Cardano.Crypto.Hash
-import Cardano.Crypto.Util (SignableRepresentation (..))
-import qualified Cardano.Crypto.VRF as VRF
 import Cardano.Ledger.Keys (KeyHash, KeyRole (..))
 import Cardano.Ledger.NonIntegral (ln')
 import Cardano.Ledger.Serialization
   ( CBORGroup (..),
     FromCBORGroup (..),
     ToCBORGroup (..),
-    decodeRecordSum,
-    ratioFromCBOR,
-    ratioToCBOR,
   )
 import Cardano.Slotting.EpochInfo (EpochInfo, hoistEpochInfo)
 import Cardano.Slotting.Time (SystemStart)
@@ -98,7 +98,6 @@ import qualified Data.Aeson as Aeson
 import qualified Data.Binary.Put as B
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BSL
-import Data.Coders (cborError, invalidKey)
 import Data.Default.Class (Default (def))
 import qualified Data.Fixed as FP (Fixed, HasResolution, resolution)
 import Data.Functor.Identity (Identity)
@@ -137,8 +136,10 @@ instance FromJSON ProtVer where
   parseJSON =
     Aeson.withObject "ProtVer" $ \obj ->
       ProtVer
-        <$> obj .: "major"
-        <*> obj .: "minor"
+        <$> obj
+        .: "major"
+        <*> obj
+        .: "minor"
 
 instance ToCBORGroup ProtVer where
   toCBORGroup (ProtVer x y) = toCBOR x <> toCBOR y
@@ -257,15 +258,15 @@ fromRatioBoundedRatio ratio
     upperBound = maxBound :: BoundedRatio b a
 
 instance (ToCBOR a, Integral a, Bounded a, Typeable b) => ToCBOR (BoundedRatio b a) where
-  toCBOR (BoundedRatio u) = ratioToCBOR u
+  toCBOR (BoundedRatio u) = toCBOR u
 
 instance
   (FromCBOR a, Bounded (BoundedRatio b a), Bounded a, Integral a, Typeable b, Show a) =>
   FromCBOR (BoundedRatio b a)
   where
   fromCBOR = do
-    r <- ratioFromCBOR
-    case fromRatioBoundedRatio r of
+    r <- fromCBOR
+    case fromRationalBoundedRatio r of
       Nothing ->
         cborError $ DecoderErrorCustom "BoundedRatio" (Text.pack $ show r)
       Just u -> pure u
