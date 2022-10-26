@@ -30,6 +30,9 @@ packages:
   libs/set-algebra
   libs/vector-map
 
+program-options
+  ghc-options: -Werror
+
 -- Always write GHC env files, because they are needed by the doctests.
 write-ghc-environment-files: always
 

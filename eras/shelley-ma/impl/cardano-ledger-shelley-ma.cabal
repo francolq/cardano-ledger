@@ -55,7 +55,6 @@ library
     Cardano.Ledger.ShelleyMA.Rules.Utxo
 
   other-modules:
-    Cardano.Ledger.ShelleyMA.Era
     Cardano.Ledger.ShelleyMA.Rules.Utxow
 
   build-depends:
