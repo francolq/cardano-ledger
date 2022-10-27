@@ -16,6 +16,7 @@ module Cardano.Ledger.Binary.Version
     natVersion,
     natVersionProxy,
     mkVersion,
+    mkVersion64,
     allVersions,
 
     -- ** Concrete era versions
@@ -25,6 +26,7 @@ module Cardano.Ledger.Binary.Version
 where
 
 import Data.Proxy (Proxy (..))
+import Data.Word (Word64)
 import GHC.TypeLits (KnownNat, natVal, type (<=))
 #if __GLASGOW_HASKELL__ < 900
 -- This import is redundant wih ghc-9.2.
@@ -62,7 +64,13 @@ natVersionProxy = Version . fromInteger . natVal
 -- | Construct a `Version` and fail if the supplied value is not supported version number.
 mkVersion :: MonadFail m => Natural -> m Version
 mkVersion v
-  | fromIntegral minVersion <= v && v <= fromIntegral maxVersion =
+  | v <= fromIntegral (maxBound :: Word64) = mkVersion64 (fromIntegral v)
+  | otherwise = fail $ "Decoder version is too big: " ++ show v
+
+-- | Construct a `Version` and fail if the supplied value is not supported version number.
+mkVersion64 :: MonadFail m => Word64 -> m Version
+mkVersion64 v
+  | minVersion <= v && v <= maxVersion =
       pure (Version (fromIntegral v))
   | otherwise =
       fail $
