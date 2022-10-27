@@ -301,7 +301,6 @@ transitionRulesUTXOW ::
     Signal (utxow era) ~ Tx era,
     PredicateFailure (utxow era) ~ ShelleyUtxowPredFailure era,
     STS (utxow era),
-    HasField "_protocolVersion" (PParams era) ProtVer,
     DSignable (EraCrypto era) (Hash (EraCrypto era) EraIndependentTxBody)
   ) =>
   TransitionRule (utxow era)
@@ -550,14 +549,7 @@ witsVKeyNeeded utxo' tx genDelegs =
 
 -- | check metadata hash
 --   ((adh = ◇) ∧ (ad= ◇)) ∨ (adh = hashAD ad)
-validateMetadata ::
-  forall era.
-  ( EraTx era,
-    HasField "_protocolVersion" (PParams era) ProtVer
-  ) =>
-  PParams era ->
-  Tx era ->
-  Test (ShelleyUtxowPredFailure era)
+validateMetadata :: EraTx era => PParams era -> Tx era -> Test (ShelleyUtxowPredFailure era)
 validateMetadata pp tx =
   let txBody = tx ^. bodyTxL
       pv = getField @"_protocolVersion" pp
@@ -565,14 +557,14 @@ validateMetadata pp tx =
         (SNothing, SNothing) -> pure ()
         (SJust mdh, SNothing) -> failure $ MissingTxMetadata mdh
         (SNothing, SJust md') ->
-          failure $ MissingTxBodyMetadataHash (hashTxAuxData @era md')
+          failure $ MissingTxBodyMetadataHash (hashTxAuxData md')
         (SJust mdh, SJust md') ->
           sequenceA_
-            [ failureUnless (hashTxAuxData @era md' == mdh) $
-                ConflictingMetadataHash mdh (hashTxAuxData @era md'),
+            [ failureUnless (hashTxAuxData md' == mdh) $
+                ConflictingMetadataHash mdh (hashTxAuxData md'),
               -- check metadata value sizes
               when (SoftForks.validMetadata pp) $
-                failureUnless (validateTxAuxData @era pv md') InvalidMetadata
+                failureUnless (validateTxAuxData pv md') InvalidMetadata
             ]
 
 -- | check genesis keys signatures for instantaneous rewards certificates

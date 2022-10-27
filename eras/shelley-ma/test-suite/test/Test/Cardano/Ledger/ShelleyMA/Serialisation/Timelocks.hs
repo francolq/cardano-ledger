@@ -12,13 +12,12 @@ module Test.Cardano.Ledger.ShelleyMA.Serialisation.Timelocks
   )
 where
 
-import Cardano.Binary (Annotator (..), FromCBOR (..), ToCBOR (..))
+import Cardano.Binary (Annotator (..), FromCBOR (..), FullByteString (Full), ToCBOR (..), decodeFull)
 import Cardano.Ledger.MemoBytes (MemoBytes (Memo))
 import Cardano.Ledger.Shelley.Scripts (MultiSig, getMultiSigBytes)
 import Cardano.Ledger.ShelleyMA.Timelocks
   ( Timelock (..),
     showTimelock,
-    translate,
     pattern TimelockConstr,
   )
 import Cardano.Slotting.Slot (SlotNo (..))
@@ -67,7 +66,7 @@ checkTranslate :: MultiSig (ShelleyEra TestCrypto) -> Bool
 checkTranslate multi = bytes == bytes2
   where
     bytes = getMultiSigBytes multi
-    (TimelockConstr (Memo _ bytes2)) = translate multi
+    (TimelockConstr (Memo _ bytes2)) = translateMultiSig multi
 
 timelockTests :: TestTree
 timelockTests =
@@ -80,3 +79,14 @@ timelockTests =
       testProperty "MultiSig deserialises as Timelock" checkEmbed,
       testProperty "Translate preserves bytes" checkTranslate
     ]
+
+
+-- | We translate a MultiSig by deserializing its bytes as a Timelock If this succeeds
+-- (and it should, we designed Timelock to have that property), then both versions should
+-- have the same bytes, because we are using FromCBOR(Annotator Timelock) instance.
+translateMultiSig :: forall era. (HasCallStack, Era era) => MultiSig era -> Timelock era
+translateMultiSig multi =
+  case decodeFull (eraProtVerLow @era) (fromShort (getMultiSigBytes multi)) of
+    Left err ->
+      error $ "Translating MultiSig script to Timelock script fails\n" ++ show err
+    Right (Annotator f) -> f (Full bytes)

@@ -45,9 +45,22 @@ module Cardano.Ledger.ShelleyMA.TxBody
   )
 where
 
-import Cardano.Binary (Annotator, FromCBOR (..), ToCBOR (..))
 import Cardano.Ledger.AuxiliaryData (AuxiliaryDataHash)
 import Cardano.Ledger.BaseTypes (StrictMaybe (SJust, SNothing))
+import Cardano.Ledger.Binary (Annotator, FromCBOR (..), ToCBOR (..))
+import Cardano.Ledger.Binary.Coders
+  ( Decode (..),
+    Density (..),
+    Encode (..),
+    Field,
+    Wrapped (..),
+    decode,
+    encodeKeyedStrictMaybe,
+    field,
+    invalidField,
+    ofield,
+    (!>),
+  )
 import Cardano.Ledger.Coin (Coin (..))
 import Cardano.Ledger.Compactible (Compactible (..))
 import Cardano.Ledger.Core hiding (TxBody)
@@ -56,7 +69,6 @@ import Cardano.Ledger.Crypto (StandardCrypto)
 import Cardano.Ledger.Mary.Value (MultiAsset)
 import Cardano.Ledger.MemoBytes (Mem, MemoBytes (..), MemoHashIndex, memoBytes)
 import Cardano.Ledger.SafeHash (HashAnnotated (..), SafeToHash)
-import Cardano.Ledger.Serialization (encodeFoldable)
 import Cardano.Ledger.Shelley.PParams (Update)
 import Cardano.Ledger.Shelley.TxBody
   ( DCert (..),
@@ -78,21 +90,6 @@ import Cardano.Ledger.Val
     EncodeMint (..),
   )
 import Control.DeepSeq (NFData (..))
-import Data.Coders
-  ( Decode (..),
-    Density (..),
-    Encode (..),
-    Field,
-    Wrapped (..),
-    decode,
-    decodeSet,
-    decodeStrictSeq,
-    encodeKeyedStrictMaybe,
-    field,
-    invalidField,
-    ofield,
-    (!>),
-  )
 import qualified Data.Map.Strict as Map
 import Data.Proxy
 import Data.Sequence.Strict (StrictSeq, fromList)
@@ -155,29 +152,26 @@ fromSJust SNothing = error "SNothing in fromSJust"
 -- concerns as we want the Shelley era TxBody to deserialise as a Shelley-ma TxBody.
 -- txXparse and bodyFields should be Duals, visual inspection helps ensure this.
 
-txSparse ::
-  (EraTxOut era, ToCBOR (PParamsUpdate era)) =>
-  TxBodyRaw era ->
-  Encode ('Closed 'Sparse) (TxBodyRaw era)
+txSparse :: EraTxOut era => TxBodyRaw era -> Encode ('Closed 'Sparse) (TxBodyRaw era)
 txSparse (TxBodyRaw inp out cert wdrl fee (ValidityInterval bot top) up hash frge) =
   Keyed (\i o f topx c w u h botx forg -> TxBodyRaw i o c w f (ValidityInterval botx topx) u h forg)
-    !> Key 0 (E encodeFoldable inp) -- We don't have to send these in TxBodyX order
-    !> Key 1 (E encodeFoldable out) -- Just hack up a fake constructor with the lambda.
+    !> Key 0 (To inp) -- We don't have to send these in TxBodyX order
+    !> Key 1 (To out) -- Just hack up a fake constructor with the lambda.
     !> Key 2 (To fee)
     !> encodeKeyedStrictMaybe 3 top
-    !> Omit null (Key 4 (E encodeFoldable cert))
+    !> Omit null (Key 4 (To cert))
     !> Omit (null . unWdrl) (Key 5 (To wdrl))
     !> encodeKeyedStrictMaybe 6 up
     !> encodeKeyedStrictMaybe 7 hash
     !> encodeKeyedStrictMaybe 8 bot
     !> Omit (== mempty) (Key 9 (E encodeMint frge))
 
-bodyFields :: (EraTxOut era, FromCBOR (PParamsUpdate era)) => Word -> Field (TxBodyRaw era)
-bodyFields 0 = field (\x tx -> tx {inputs = x}) (D (decodeSet fromCBOR))
-bodyFields 1 = field (\x tx -> tx {outputs = x}) (D (decodeStrictSeq fromCBOR))
+bodyFields :: EraTxOut era => Word -> Field (TxBodyRaw era)
+bodyFields 0 = field (\x tx -> tx {inputs = x}) From
+bodyFields 1 = field (\x tx -> tx {outputs = x}) From
 bodyFields 2 = field (\x tx -> tx {txfee = x}) From
 bodyFields 3 = ofield (\x tx -> tx {vldt = (vldt tx) {invalidHereafter = x}}) From
-bodyFields 4 = field (\x tx -> tx {certs = x}) (D (decodeStrictSeq fromCBOR))
+bodyFields 4 = field (\x tx -> tx {certs = x}) From
 bodyFields 5 = field (\x tx -> tx {wdrls = x}) From
 bodyFields 6 = ofield (\x tx -> tx {update = x}) From
 bodyFields 7 = ofield (\x tx -> tx {adHash = x}) From
@@ -266,10 +260,7 @@ pattern MATxBody inputs outputs certs wdrls txfee vldt update adHash mint <-
 
 {-# COMPLETE MATxBody #-}
 
-mkMATxBody ::
-  (EraTxOut era, ToCBOR (PParamsUpdate era)) =>
-  TxBodyRaw era ->
-  MATxBody era
+mkMATxBody :: EraTxOut era => TxBodyRaw era -> MATxBody era
 mkMATxBody = TxBodyConstr . memoBytes . txSparse
 {-# INLINEABLE mkMATxBody #-}
 

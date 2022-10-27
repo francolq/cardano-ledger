@@ -45,6 +45,7 @@ module Cardano.Ledger.Core
     TranslateEra (..),
     translateEra',
     translateEraMaybe,
+    translateEraThroughCBOR,
     -- $segWit
     EraSegWits (..),
 
@@ -86,9 +87,10 @@ where
 import qualified Cardano.Crypto.Hash as Hash
 import Cardano.Ledger.Address (Addr (..), BootstrapAddress)
 import Cardano.Ledger.AuxiliaryData (AuxiliaryDataHash)
-import Cardano.Ledger.BaseTypes (ProtVer(..))
+import Cardano.Ledger.BaseTypes (ProtVer (..))
 import Cardano.Ledger.Binary
   ( Annotator,
+    DecoderError,
     FromCBOR (..),
     FromSharedCBOR (Share),
     Interns,
@@ -100,6 +102,7 @@ import Cardano.Ledger.Binary
     Version,
     mkSized,
     natVersion,
+    translateViaCBORAnnotator,
   )
 import Cardano.Ledger.Coin (Coin)
 import Cardano.Ledger.CompactAddress (CompactAddr, compactAddr, decompactAddr, isBootstrapCompactAddr)
@@ -126,6 +129,7 @@ import Data.Maybe (fromMaybe)
 import Data.Maybe.Strict (StrictMaybe)
 import Data.Sequence.Strict (StrictSeq)
 import Data.Set (Set)
+import Data.Text (Text)
 import Data.Typeable (Typeable)
 import Data.Void (Void, absurd)
 import Data.Word (Word64)
@@ -642,6 +646,17 @@ translateEraMaybe ::
   Maybe (f era)
 translateEraMaybe ctxt =
   either (const Nothing) Just . runExcept . translateEra ctxt
+
+-- | Translate a type through its binary representation from previous era to the current one.
+translateEraThroughCBOR ::
+  forall era f.
+  (Era era, Era (PreviousEra era), ToCBOR (f (PreviousEra era)), FromCBOR (Annotator (f era))) =>
+  -- | Label for error reporting
+  Text ->
+  f (PreviousEra era) ->
+  Except DecoderError (f era)
+translateEraThroughCBOR =
+  translateViaCBORAnnotator (eraProtVerHigh @(PreviousEra era)) (eraProtVerLow @era)
 
 -----------------------------
 -- Protocol version bounds --
