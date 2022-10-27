@@ -14,7 +14,8 @@
 {-# LANGUAGE UndecidableInstances #-}
 
 module Cardano.Ledger.Shelley.Genesis
-  ( ShelleyGenesisStaking (..),
+  ( ParedDownShelleyGenesis (..),
+    ShelleyGenesisStaking (..),
     ShelleyGenesis (..),
     ValidationErr (..),
     emptyGenesisStaking,
