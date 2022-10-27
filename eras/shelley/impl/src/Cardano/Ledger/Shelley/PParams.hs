@@ -7,6 +7,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
@@ -41,7 +42,10 @@ import Cardano.Ledger.BaseTypes
     StrictMaybe (..),
     UnitInterval,
     fromSMaybe,
+    getVersion64,
     invalidKey,
+    mkVersion64,
+    natVersion,
     strictMaybeToMaybe,
   )
 import qualified Cardano.Ledger.BaseTypes as BT
@@ -322,7 +326,7 @@ emptyPParams =
       _tau = minBound,
       _d = minBound,
       _extraEntropy = NeutralNonce,
-      _protocolVersion = BT.ProtVer 0 0,
+      _protocolVersion = BT.ProtVer (natVersion @2) 0, -- DOUBLE CHECK: switched major version to 2!
       _minUTxOValue = mempty,
       _minPoolCost = mempty
     }
@@ -528,4 +532,4 @@ instance Default (PPUPState era) where
 pvCanFollow :: BT.ProtVer -> StrictMaybe BT.ProtVer -> Bool
 pvCanFollow _ SNothing = True
 pvCanFollow (BT.ProtVer m n) (SJust (BT.ProtVer m' n')) =
-  (m + 1, 0) == (m', n') || (m, n + 1) == (m', n')
+  (mkVersion64 (getVersion64 m + 1), 0) == (Just m', n') || (m, n + 1) == (m', n')

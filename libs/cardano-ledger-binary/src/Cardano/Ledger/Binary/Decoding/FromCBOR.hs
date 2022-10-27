@@ -36,6 +36,7 @@ import qualified Cardano.Crypto.VRF.Praos as Praos
 import Cardano.Crypto.VRF.Simple (SimpleVRF)
 import Cardano.Ledger.Binary.Crypto
 import Cardano.Ledger.Binary.Decoding.Decoder
+import Cardano.Ledger.Binary.Version (Version)
 import Cardano.Slotting.Block (BlockNo (..))
 import Cardano.Slotting.Slot (EpochNo (..), EpochSize (..), SlotNo (..), WithOrigin (..))
 import Cardano.Slotting.Time (SystemStart (..))
@@ -86,6 +87,9 @@ class Typeable a => FromCBOR a where
 
   label :: Proxy a -> T.Text
   label = T.pack . show . typeRep
+
+instance FromCBOR Version where
+  fromCBOR = decodeVersion
 
 --------------------------------------------------------------------------------
 -- Primitive types

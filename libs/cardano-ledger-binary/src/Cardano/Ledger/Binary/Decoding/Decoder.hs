@@ -40,6 +40,7 @@ module Cardano.Ledger.Binary.Decoding.Decoder
     binaryGetDecoder,
 
     -- ** Custom decoders
+    decodeVersion,
     decodeRational,
     decodeFraction,
     decodeRecordNamed,
@@ -353,6 +354,9 @@ invalidKey k = cborError $ DecoderErrorCustom "Not a valid key:" (Text.pack $ sh
 -- | Convert an 'Either'-encoded failure to a 'cborg' decoder failure
 toCborError :: B.Buildable e => Either e a -> Decoder s a
 toCborError = either cborError pure
+
+decodeVersion :: Decoder s Version
+decodeVersion = decodeWord64 >>= mkVersion64
 
 -- | `Decoder` for `Rational`. Versions variance:
 --

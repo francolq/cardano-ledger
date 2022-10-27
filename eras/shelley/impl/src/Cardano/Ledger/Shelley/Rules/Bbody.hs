@@ -23,7 +23,7 @@ module Cardano.Ledger.Shelley.Rules.Bbody
 where
 
 import Cardano.Ledger.BHeaderView (BHeaderView (..), isOverlaySlot)
-import Cardano.Ledger.BaseTypes (BlocksMade, ShelleyBase, UnitInterval, epochInfoPure)
+import Cardano.Ledger.BaseTypes (BlocksMade, ProtVer, ShelleyBase, UnitInterval, epochInfoPure)
 import Cardano.Ledger.Block (Block (..))
 import Cardano.Ledger.Core
 import Cardano.Ledger.Keys (DSignable, Hash, coerceKeyRole)
@@ -102,7 +102,8 @@ instance
     Environment (EraRule "LEDGERS" era) ~ ShelleyLedgersEnv era,
     State (EraRule "LEDGERS" era) ~ LedgerState era,
     Signal (EraRule "LEDGERS" era) ~ Seq (Tx era),
-    HasField "_d" (PParams era) UnitInterval
+    HasField "_d" (PParams era) UnitInterval,
+    HasField "_protocolVersion" (PParams era) ProtVer
   ) =>
   STS (ShelleyBBODY era)
   where
@@ -133,7 +134,8 @@ bbodyTransition ::
     Environment (EraRule "LEDGERS" era) ~ ShelleyLedgersEnv era,
     State (EraRule "LEDGERS" era) ~ LedgerState era,
     Signal (EraRule "LEDGERS" era) ~ Seq (Tx era),
-    HasField "_d" (PParams era) UnitInterval
+    HasField "_d" (PParams era) UnitInterval,
+    HasField "_protocolVersion" (PParams era) ProtVer
   ) =>
   TransitionRule (ShelleyBBODY era)
 bbodyTransition =
@@ -145,7 +147,7 @@ bbodyTransition =
                )
            ) -> do
         let txs = fromTxSeq @era txsSeq
-            actualBodySize = bBodySize @era txsSeq
+            actualBodySize = bBodySize @era (getField @"_protocolVersion" pp) txsSeq
             actualBodyHash = hashTxSeq @era txsSeq
 
         actualBodySize

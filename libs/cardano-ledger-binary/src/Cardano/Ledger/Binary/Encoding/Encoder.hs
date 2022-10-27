@@ -17,6 +17,7 @@ module Cardano.Ledger.Binary.Encoding.Encoder
     enforceVersionEncoding,
 
     -- ** Custom
+    encodeVersion,
     encodeMaybe,
     encodeNullMaybe,
     encodePair,
@@ -263,6 +264,9 @@ encodeTerm = fromPlainEncoding . C.encodeTerm
 --------------------------------------------------------------------------------
 -- Custom
 --------------------------------------------------------------------------------
+
+encodeVersion :: Version -> Encoding
+encodeVersion = encodeWord64 . getVersion64
 
 encodeRatio :: (t -> Encoding) -> Ratio t -> Encoding
 encodeRatio encodeNumeric r =

@@ -17,6 +17,7 @@ module Cardano.Ledger.Binary.Version
     natVersionProxy,
     mkVersion,
     mkVersion64,
+    getVersion64,
     allVersions,
 
     -- ** Concrete era versions
@@ -86,6 +87,10 @@ mkVersion64 v
   where
     Version minVersion = minBound
     Version maxVersion = maxBound
+
+-- | Extract `Word64` representation of the `Version`
+getVersion64 :: Version -> Word64
+getVersion64 (Version w64) = w64
 
 allVersions :: [Version]
 allVersions = [minBound .. maxBound]

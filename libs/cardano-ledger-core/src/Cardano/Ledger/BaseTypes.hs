@@ -7,6 +7,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE UndecidableInstances #-}
@@ -14,6 +15,7 @@
 
 module Cardano.Ledger.BaseTypes
   ( ProtVer (..),
+    module Cardano.Ledger.Binary.Version,
     FixedPoint,
     (==>),
     (⭒),
@@ -83,6 +85,7 @@ import Cardano.Ledger.Binary
     encodedSizeExpr,
     invalidKey,
   )
+import Cardano.Ledger.Binary.Version
 import Cardano.Ledger.Keys (KeyHash, KeyRole (..))
 import Cardano.Ledger.NonIntegral (ln')
 import Cardano.Slotting.EpochInfo (EpochInfo, hoistEpochInfo)
@@ -116,7 +119,7 @@ import NoThunks.Class (NoThunks (..))
 import Numeric.Natural (Natural)
 import Quiet (Quiet (Quiet))
 
-data ProtVer = ProtVer {pvMajor :: !Natural, pvMinor :: !Natural}
+data ProtVer = ProtVer {pvMajor :: !Version, pvMinor :: !Natural}
   deriving (Show, Eq, Generic, Ord, NFData)
   deriving (ToCBOR) via (CBORGroup ProtVer)
   deriving (FromCBOR) via (CBORGroup ProtVer)
@@ -126,24 +129,22 @@ instance NoThunks ProtVer
 instance ToJSON ProtVer where
   toJSON (ProtVer major minor) =
     Aeson.object
-      [ "major" .= major,
+      [ "major" .= getVersion64 major,
         "minor" .= minor
       ]
 
 instance FromJSON ProtVer where
   parseJSON =
-    Aeson.withObject "ProtVer" $ \obj ->
-      ProtVer
-        <$> obj
-        .: "major"
-        <*> obj
-        .: "minor"
+    Aeson.withObject "ProtVer" $ \obj -> do
+      pvMajor <- mkVersion64 =<< obj .: "major"
+      pvMinor <- obj .: "minor"
+      pure ProtVer {..}
 
 instance ToCBORGroup ProtVer where
   toCBORGroup (ProtVer x y) = toCBOR x <> toCBOR y
   encodedGroupSizeExpr l proxy =
-    encodedSizeExpr l ((\(ProtVer x _) -> toWord x) <$> proxy)
-      + encodedSizeExpr l ((\(ProtVer _ y) -> toWord y) <$> proxy)
+    encodedSizeExpr l (pvMajor <$> proxy)
+      + encodedSizeExpr l (toWord . pvMinor <$> proxy)
     where
       toWord :: Natural -> Word
       toWord = fromIntegral

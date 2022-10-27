@@ -99,6 +99,7 @@ import qualified Cardano.Crypto.VRF.Praos as Praos
 import Cardano.Crypto.VRF.Simple (SimpleVRF)
 import Cardano.Ledger.Binary.Crypto
 import Cardano.Ledger.Binary.Encoding.Encoder
+import Cardano.Ledger.Binary.Version (Version, getVersion64)
 import Cardano.Slotting.Block (BlockNo (..))
 import Cardano.Slotting.Slot (EpochNo (..), EpochSize (..), SlotNo (..), WithOrigin (..))
 import Cardano.Slotting.Time (SystemStart (..))
@@ -180,6 +181,10 @@ newtype PreEncoded = PreEncoded {unPreEncoded :: BS.ByteString}
 
 instance ToCBOR PreEncoded where
   toCBOR = encodePreEncoded . unPreEncoded
+
+instance ToCBOR Version where
+  toCBOR = encodeVersion
+  encodedSizeExpr f px = f (getVersion64 <$> px)
 
 --------------------------------------------------------------------------------
 -- Size expressions

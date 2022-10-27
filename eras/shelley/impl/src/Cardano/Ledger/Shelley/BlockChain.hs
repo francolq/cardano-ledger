@@ -34,6 +34,7 @@ import qualified Cardano.Crypto.Hash.Class as Hash
 import Cardano.Ledger.BaseTypes
   ( BlocksMade (..),
     Nonce (..),
+    ProtVer (..),
     StrictMaybe (..),
     mkNonceFromNumber,
     strictMaybeToMaybe,
@@ -252,8 +253,8 @@ txSeqDecoder lax = do
 instance EraTx era => FromCBOR (Annotator (ShelleyTxSeq era)) where
   fromCBOR = txSeqDecoder False
 
-bBodySize :: forall era. EraSegWits era => Core.TxSeq era -> Int
-bBodySize = BS.length . serializeEncoding' (eraProtVerLow @era) . toCBORGroup
+bBodySize :: forall era. EraSegWits era => ProtVer -> Core.TxSeq era -> Int
+bBodySize (ProtVer v _) = BS.length . serializeEncoding' v . toCBORGroup
 
 slotToNonce :: SlotNo -> Nonce
 slotToNonce (SlotNo s) = mkNonceFromNumber s
