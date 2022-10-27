@@ -25,9 +25,11 @@ module Cardano.Ledger.Binary.Version
   )
 where
 
+import Control.DeepSeq (NFData)
 import Data.Proxy (Proxy (..))
 import Data.Word (Word64)
 import GHC.TypeLits (KnownNat, natVal, type (<=))
+import NoThunks.Class (NoThunks)
 #if __GLASGOW_HASKELL__ < 900
 -- This import is redundant wih ghc-9.2.
 import Numeric.Natural (Natural)
@@ -39,8 +41,8 @@ import Numeric.Natural (Natural)
 
 -- | Protocol version number that is used during encoding and decoding. All supported
 -- versions are in the range from `MinVersion` to `MaxVersion`.
-newtype Version = Version Word
-  deriving (Eq, Ord, Show, Enum)
+newtype Version = Version Word64
+  deriving (Eq, Ord, Show, Enum, NFData, NoThunks)
 
 -- | Minimum supported version
 type MinVersion = 1
