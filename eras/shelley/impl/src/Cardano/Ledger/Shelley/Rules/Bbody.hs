@@ -23,7 +23,7 @@ module Cardano.Ledger.Shelley.Rules.Bbody
 where
 
 import Cardano.Ledger.BHeaderView (BHeaderView (..), isOverlaySlot)
-import Cardano.Ledger.BaseTypes (BlocksMade, ProtVer, ShelleyBase, UnitInterval, epochInfoPure)
+import Cardano.Ledger.BaseTypes (BlocksMade, ShelleyBase, UnitInterval, epochInfoPure)
 import Cardano.Ledger.Block (Block (..))
 import Cardano.Ledger.Core
 import Cardano.Ledger.Keys (DSignable, Hash, coerceKeyRole)
@@ -102,8 +102,7 @@ instance
     Environment (EraRule "LEDGERS" era) ~ ShelleyLedgersEnv era,
     State (EraRule "LEDGERS" era) ~ LedgerState era,
     Signal (EraRule "LEDGERS" era) ~ Seq (Tx era),
-    HasField "_d" (PParams era) UnitInterval,
-    HasField "_protocolVersion" (PParams era) ProtVer
+    HasField "_d" (PParams era) UnitInterval
   ) =>
   STS (ShelleyBBODY era)
   where
@@ -134,8 +133,7 @@ bbodyTransition ::
     Environment (EraRule "LEDGERS" era) ~ ShelleyLedgersEnv era,
     State (EraRule "LEDGERS" era) ~ LedgerState era,
     Signal (EraRule "LEDGERS" era) ~ Seq (Tx era),
-    HasField "_d" (PParams era) UnitInterval,
-    HasField "_protocolVersion" (PParams era) ProtVer
+    HasField "_d" (PParams era) UnitInterval
   ) =>
   TransitionRule (ShelleyBBODY era)
 bbodyTransition =

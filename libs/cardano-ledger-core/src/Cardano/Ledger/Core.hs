@@ -86,7 +86,7 @@ where
 import qualified Cardano.Crypto.Hash as Hash
 import Cardano.Ledger.Address (Addr (..), BootstrapAddress)
 import Cardano.Ledger.AuxiliaryData (AuxiliaryDataHash)
-import Cardano.Ledger.BaseTypes (ProtVer)
+import Cardano.Ledger.BaseTypes (ProtVer(..))
 import Cardano.Ledger.Binary
   ( Annotator,
     FromCBOR (..),
@@ -129,6 +129,7 @@ import Data.Set (Set)
 import Data.Typeable (Typeable)
 import Data.Void (Void, absurd)
 import Data.Word (Word64)
+import GHC.Records
 import GHC.Stack (HasCallStack)
 import GHC.TypeLits
 import Lens.Micro
@@ -237,7 +238,7 @@ class
     NFData (TxOut era),
     Show (TxOut era),
     Eq (TxOut era),
-    Era era
+    EraPParams era
   ) =>
   EraTxOut era
   where
@@ -319,7 +320,9 @@ class
   -- be not needed, then serialization will have no overhead, since it is
   -- computed lazily.
   getMinCoinTxOut :: PParams era -> TxOut era -> Coin
-  getMinCoinTxOut pp txOut = getMinCoinSizedTxOut pp (mkSized (eraProtVerLow @era) txOut)
+  getMinCoinTxOut pp txOut =
+    let ProtVer version _ = getField @"_protocolVersion" pp
+     in getMinCoinSizedTxOut pp (mkSized version txOut)
 
 bootAddrTxOutF :: EraTxOut era => SimpleGetter (TxOut era) (Maybe (BootstrapAddress (EraCrypto era)))
 bootAddrTxOutF = to $ \txOut ->
@@ -420,7 +423,8 @@ class
     NFData (PParamsUpdate era),
     ToCBOR (PParamsUpdate era),
     FromCBOR (PParamsUpdate era),
-    NoThunks (PParamsUpdate era)
+    NoThunks (PParamsUpdate era),
+    HasField "_protocolVersion" (PParams era) ProtVer
   ) =>
   EraPParams era
   where
