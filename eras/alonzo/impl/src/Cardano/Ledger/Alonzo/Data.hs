@@ -43,7 +43,14 @@ module Cardano.Ledger.Alonzo.Data
   )
 where
 
-import Cardano.Binary
+import Cardano.Crypto.Hash.Class (HashAlgorithm)
+import Cardano.HeapWords (HeapWords (..), heapWords0, heapWords1)
+import Cardano.Ledger.Alonzo.Era
+import Cardano.Ledger.Alonzo.Language (Language (..))
+import Cardano.Ledger.Alonzo.Scripts (AlonzoScript (..), validScript)
+import Cardano.Ledger.AuxiliaryData (AuxiliaryDataHash (..))
+import Cardano.Ledger.BaseTypes (ProtVer, StrictMaybe (..))
+import Cardano.Ledger.Binary
   ( DecoderError (..),
     FromCBOR (..),
     ToCBOR (..),
@@ -54,13 +61,7 @@ import Cardano.Binary
     peekTokenType,
     withSlice,
   )
-import Cardano.Crypto.Hash.Class (HashAlgorithm)
-import Cardano.HeapWords (HeapWords (..), heapWords0, heapWords1)
-import Cardano.Ledger.Alonzo.Era
-import Cardano.Ledger.Alonzo.Language (Language (..))
-import Cardano.Ledger.Alonzo.Scripts (AlonzoScript (..), validScript)
-import Cardano.Ledger.AuxiliaryData (AuxiliaryDataHash (..))
-import Cardano.Ledger.BaseTypes (ProtVer, StrictMaybe (..))
+import Cardano.Ledger.Binary.Coders
 import Cardano.Ledger.Core
 import Cardano.Ledger.Crypto (HASH)
 import qualified Cardano.Ledger.Crypto as CC
@@ -77,7 +78,6 @@ import qualified Codec.Serialise as Cborg (Serialise (..))
 import Control.DeepSeq (NFData)
 import Data.ByteString.Lazy (fromStrict)
 import Data.ByteString.Short (ShortByteString, fromShort, toShort)
-import Data.Coders
 import Data.Foldable (foldl')
 import Data.Map (Map)
 import Data.Maybe (mapMaybe)

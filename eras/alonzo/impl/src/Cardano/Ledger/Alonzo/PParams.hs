@@ -36,16 +36,6 @@ module Cardano.Ledger.Alonzo.PParams
   )
 where
 
-import Cardano.Binary
-  ( Encoding,
-    FromCBOR (..),
-    ToCBOR (..),
-    encodeMapLen,
-    encodeNull,
-    encodePreEncoded,
-    serialize',
-    serializeEncoding',
-  )
 import Cardano.Ledger.Alonzo.Era
 import Cardano.Ledger.Alonzo.Language (Language (..))
 import Cardano.Ledger.Alonzo.Scripts
@@ -64,19 +54,8 @@ import Cardano.Ledger.BaseTypes
     isSNothing,
   )
 import qualified Cardano.Ledger.BaseTypes as BT (ProtVer (..))
-import Cardano.Ledger.Coin (Coin (..))
-import Cardano.Ledger.Core hiding (PParams, PParamsUpdate)
-import qualified Cardano.Ledger.Core as Core
-import qualified Cardano.Ledger.Crypto as CC
-import Cardano.Ledger.HKD (HKD)
-import Cardano.Ledger.Orphans ()
-import Cardano.Ledger.Serialization (FromCBORGroup (..), ToCBORGroup (..))
-import Cardano.Ledger.Shelley.PParams (ShelleyPParamsHKD (ShelleyPParams))
-import Cardano.Ledger.Slot (EpochNo (..))
-import Control.DeepSeq (NFData)
-import Data.ByteString (ByteString)
-import qualified Data.ByteString as BS
-import Data.Coders
+import Cardano.Ledger.Binary (Encoding, FromCBOR (..), FromCBORGroup (..), ToCBOR (..), ToCBORGroup (..), encodeMapLen, encodeNull, encodePreEncoded, serialize', serializeEncoding')
+import Cardano.Ledger.Binary.Coders
   ( Decode (..),
     Density (..),
     Encode (..),
@@ -84,11 +63,21 @@ import Data.Coders
     Wrapped (..),
     decode,
     encode,
-    encodeFoldableAsIndefinite,
     field,
     (!>),
     (<!),
   )
+import Cardano.Ledger.Coin (Coin (..))
+import Cardano.Ledger.Core hiding (PParams, PParamsUpdate)
+import qualified Cardano.Ledger.Core as Core
+import qualified Cardano.Ledger.Crypto as CC
+import Cardano.Ledger.HKD (HKD)
+import Cardano.Ledger.Shelley.Orphans ()
+import Cardano.Ledger.Shelley.PParams (ShelleyPParamsHKD (ShelleyPParams))
+import Cardano.Ledger.Slot (EpochNo (..))
+import Control.DeepSeq (NFData)
+import Data.ByteString (ByteString)
+import qualified Data.ByteString as BS
 import Data.Default (Default (..))
 import Data.Function (on)
 import Data.Functor.Identity (Identity (..))

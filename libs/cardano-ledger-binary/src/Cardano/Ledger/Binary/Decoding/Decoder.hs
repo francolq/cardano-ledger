@@ -56,6 +56,7 @@ module Cardano.Ledger.Binary.Decoding.Decoder
     decodeSet,
     setTag,
     decodeMap,
+    decodeMapByKey,
     decodeVMap,
     decodeSeq,
     decodeStrictSeq,
@@ -543,7 +544,7 @@ decodeMapSkel ::
   -- | Decoder for keys
   Decoder s k ->
   -- | Decoder for values
-  Decoder s v ->
+  (k -> Decoder s v) ->
   Decoder s m
 decodeMapSkel fromDistinctDescList decodeKey decodeValue = do
   n <- decodeMapLen
@@ -557,7 +558,7 @@ decodeMapSkel fromDistinctDescList decodeKey decodeValue = do
     decodeEntry :: Decoder s (k, v)
     decodeEntry = do
       !k <- decodeKey
-      !v <- decodeValue
+      !v <- decodeValue k
       return (k, v)
 
     -- Decode all the entries, enforcing canonicity by ensuring that the
@@ -574,16 +575,6 @@ decodeMapSkel fromDistinctDescList decodeKey decodeValue = do
         then decodeEntries (remainingPairs - 1) newKey (p : acc)
         else cborError $ DecoderErrorCanonicityViolation "Map"
 {-# INLINE decodeMapSkel #-}
-
-decodeMapV1 ::
-  forall k v s.
-  Ord k =>
-  -- | Decoder for keys
-  Decoder s k ->
-  -- | Decoder for values
-  Decoder s v ->
-  Decoder s (Map.Map k v)
-decodeMapV1 = decodeMapSkel Map.fromDistinctDescList
 
 decodeCollection :: Decoder s (Maybe Int) -> Decoder s a -> Decoder s [a]
 decodeCollection lenOrIndef el = snd <$> decodeCollectionWithLen lenOrIndef el
@@ -602,7 +593,7 @@ decodeCollectionWithLen lenOrIndef el = do
         False -> pure (n, reverse acc)
         True -> action >>= \v -> loop (n + 1, v : acc) condition action
 
-decodeMapByKey ::
+decodeIsListByKey ::
   forall k t v s.
   (Exts.IsList t, Exts.Item t ~ (k, v)) =>
   -- | Decoder for keys
@@ -610,7 +601,7 @@ decodeMapByKey ::
   -- | Decoder for values
   (k -> Decoder s v) ->
   Decoder s t
-decodeMapByKey decodeKey decodeValueFor =
+decodeIsListByKey decodeKey decodeValueFor =
   uncurry Exts.fromListN
     <$> decodeCollectionWithLen decodeMapLenOrIndef decodeInlinedPair
   where
@@ -618,20 +609,6 @@ decodeMapByKey decodeKey decodeValueFor =
       !key <- decodeKey
       !value <- decodeValueFor key
       pure (key, value)
-
--- | We want to make a uniform way of encoding and decoding `Map.Map`. The original `ToCBOR`
--- and `FromCBOR` instances date to Byron Era didn't support versioning were not always
--- cannonical. We want to make these cannonical improvements staring with protocol version
--- 2.
-decodeMapV2 ::
-  forall k v s.
-  Ord k =>
-  -- | Decoder for keys
-  Decoder s k ->
-  -- | Decoder for values
-  Decoder s v ->
-  Decoder s (Map.Map k v)
-decodeMapV2 decodeKey decodeValue = decodeMapByKey decodeKey (const decodeValue)
 
 -- | `Decoder` for `Map.Map`. Versions variance:
 --
@@ -656,11 +633,19 @@ decodeMap ::
   Decoder s k ->
   Decoder s v ->
   Decoder s (Map.Map k v)
-decodeMap decodeKey decodeValue =
+decodeMap decodeKey decodeValue = decodeMapByKey decodeKey (const decodeValue)
+
+-- | Just like `decodeMap`, but also gives access to the key for the value decoder.
+decodeMapByKey ::
+  Ord k =>
+  Decoder s k ->
+  (k -> Decoder s v) ->
+  Decoder s (Map.Map k v)
+decodeMapByKey decodeKey decodeValue =
   ifDecoderVersionAtLeast
     (natVersion @2)
-    (decodeMapV2 decodeKey decodeValue)
-    (decodeMapV1 decodeKey decodeValue)
+    (decodeIsListByKey decodeKey decodeValue)
+    (decodeMapSkel Map.fromDistinctDescList decodeKey decodeValue)
 
 -- | Decode `VMap`. Unlike `decodeMap` it does not behavee differently for
 -- version prior to 2.
@@ -669,7 +654,7 @@ decodeVMap ::
   Decoder s k ->
   Decoder s v ->
   Decoder s (VMap.VMap kv vv k v)
-decodeVMap decodeKey decodeValue = decodeMapByKey decodeKey (const decodeValue)
+decodeVMap decodeKey decodeValue = decodeIsListByKey decodeKey (const decodeValue)
 
 -- | We stitch a `258` in from of a (Hash)Set, so that tools which
 -- programmatically check for canonicity can recognise it from a normal
