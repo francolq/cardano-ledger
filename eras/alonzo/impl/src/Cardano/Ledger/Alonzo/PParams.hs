@@ -52,9 +52,22 @@ import Cardano.Ledger.BaseTypes
     UnitInterval,
     fromSMaybe,
     isSNothing,
+    natVersion,
   )
 import qualified Cardano.Ledger.BaseTypes as BT (ProtVer (..))
-import Cardano.Ledger.Binary (Encoding, FromCBOR (..), FromCBORGroup (..), ToCBOR (..), ToCBORGroup (..), encodeMapLen, encodeNull, encodePreEncoded, serialize', serializeEncoding')
+import Cardano.Ledger.Binary
+  ( Encoding,
+    FromCBOR (..),
+    FromCBORGroup (..),
+    ToCBOR (..),
+    ToCBORGroup (..),
+    encodeFoldableAsIndefinite,
+    encodeMapLen,
+    encodeNull,
+    encodePreEncoded,
+    serialize',
+    serializeEncoding',
+  )
 import Cardano.Ledger.Binary.Coders
   ( Decode (..),
     Density (..),
@@ -289,7 +302,7 @@ emptyPParams =
       _tau = minBound,
       _d = minBound,
       _extraEntropy = NeutralNonce,
-      _protocolVersion = BT.ProtVer 5 0,
+      _protocolVersion = BT.ProtVer (natVersion @5) 0,
       _minPoolCost = mempty,
       -- new/updated for alonzo
       _coinsPerUTxOWord = Coin 0,
@@ -503,30 +516,32 @@ data LangDepView = LangDepView {tag :: ByteString, params :: ByteString}
 -- Future versions of Plutus, starting with PlutusV2 in the Babbage era, will
 -- use the intended definite length encoding.
 legacyNonCanonicalCostModelEncoder :: CostModel -> Encoding
-legacyNonCanonicalCostModelEncoder = encodeFoldableAsIndefinite . getCostModelParams
+legacyNonCanonicalCostModelEncoder = encodeFoldableAsIndefinite toCBOR . getCostModelParams
 
 getLanguageView ::
   forall era.
-  (HasField "_costmdls" (Core.PParams era) CostModels) =>
+  ( HasField "_costmdls" (Core.PParams era) CostModels,
+    HasField "_protocolVersion" (Core.PParams era) BT.ProtVer
+  ) =>
   Core.PParams era ->
   Language ->
   LangDepView
-getLanguageView pp lang@PlutusV1 =
-  LangDepView -- The silly double bagging is to keep compatibility with a past bug
-    (serialize' (serialize' lang))
-    ( serialize'
-        ( serializeEncoding' $
-            maybe encodeNull legacyNonCanonicalCostModelEncoder $
-              Map.lookup lang (unCostModels $ getField @"_costmdls" pp)
+getLanguageView pp lang =
+  case lang of
+    PlutusV1 ->
+      LangDepView -- The silly double bagging is to keep compatibility with a past bug
+        (serialize' version (serialize' version lang))
+        ( serialize' version $
+            serializeEncoding' version $
+              maybe encodeNull legacyNonCanonicalCostModelEncoder costModel
         )
-    )
-getLanguageView pp lang@PlutusV2 =
-  LangDepView
-    (serialize' lang)
-    ( serializeEncoding' $
-        maybe encodeNull toCBOR $
-          Map.lookup lang (unCostModels $ getField @"_costmdls" pp)
-    )
+    PlutusV2 ->
+      LangDepView
+        (serialize' version lang)
+        (serializeEncoding' version $ maybe encodeNull toCBOR costModel)
+  where
+    costModel = Map.lookup lang (unCostModels $ getField @"_costmdls" pp)
+    version = BT.pvMajor $ getField @"_protocolVersion" pp
 
 encodeLangViews :: Set LangDepView -> Encoding
 encodeLangViews views = encodeMapLen n <> foldMap encPair ascending

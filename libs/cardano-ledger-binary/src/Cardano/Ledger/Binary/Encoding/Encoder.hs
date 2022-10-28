@@ -34,6 +34,7 @@ module Cardano.Ledger.Binary.Encoding.Encoder
 
     -- **** Helpers
     encodeFoldableEncoder,
+    encodeFoldableAsIndefinite,
     encodeFoldableMapEncoder,
 
     -- *** Time
@@ -302,13 +303,24 @@ encodePair :: (a -> Encoding) -> (b -> Encoding) -> (a, b) -> Encoding
 encodePair = encodeTuple
 {-# DEPRECATED encodePair "In favor of `encodeTuple`" #-}
 
+
+-- | Encode any Foldable with indefinite list length encoding
+encodeFoldableAsIndefinite :: Foldable f => (a -> Encoding) -> f a -> Encoding
+encodeFoldableAsIndefinite encodeValue xs =
+  encodeListLenIndef <> foldr (\x r -> encodeValue x <> r) encodeBreak xs
+
+
+-- | Encode any Foldable with the variable list length encoding, which will use indefinite
+-- encoding over 23 elements and definite otherwise.
 encodeFoldableEncoder :: Foldable f => (a -> Encoding) -> f a -> Encoding
 encodeFoldableEncoder encoder xs = variableListLenEncoding len contents
   where
     (len, contents) = foldl' go (0, mempty) xs
     go (!l, !enc) next = (l + 1, enc <> encoder next)
 
--- | Encode a data structure as a Map from 0-based index for a Key to a value.
+-- | Encode a data structure as a Map with the 0-based index for a Key to a value. Uses
+-- variable map length encoding, which means an indefinite encoding for maps with over 23
+-- elements and definite otherwise.
 encodeFoldableMapEncoder ::
   Foldable f =>
   -- | A function that accepts an index of the value in the foldable data strucure, the
@@ -430,8 +442,7 @@ encodeSet encodeValue f =
 -- * [< 2] - Variable length encoding
 encodeList :: (a -> Encoding) -> [a] -> Encoding
 encodeList encodeValue xs =
-  let varLenEncList =
-        encodeListLenIndef <> foldr (\x r -> encodeValue x <> r) encodeBreak xs
+  let varLenEncList = encodeFoldableAsIndefinite encodeValue xs
       (Sum len, exactLenEncList) = foldMap' (\v -> (1, encodeValue v)) xs
       -- we don't want to compute the length of the list, unless it is smaller than the
       -- threshold

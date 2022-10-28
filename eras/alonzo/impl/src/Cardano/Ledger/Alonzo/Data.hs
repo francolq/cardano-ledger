@@ -12,6 +12,7 @@
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 -- This is needed to make Plutus.Data instances
@@ -51,13 +52,17 @@ import Cardano.Ledger.Alonzo.Scripts (AlonzoScript (..), validScript)
 import Cardano.Ledger.AuxiliaryData (AuxiliaryDataHash (..))
 import Cardano.Ledger.BaseTypes (ProtVer, StrictMaybe (..))
 import Cardano.Ledger.Binary
-  ( DecoderError (..),
+  ( Annotator (..),
+    DecoderError (..),
     FromCBOR (..),
     ToCBOR (..),
     TokenType (..),
-    decodeAnnotator,
+    decodeFullAnnotator,
     decodeNestedCborBytes,
+    decodeStrictSeq,
     encodeTag,
+    fromPlainDecoder,
+    fromPlainEncoding,
     peekTokenType,
     withSlice,
   )
@@ -72,7 +77,6 @@ import Cardano.Ledger.SafeHash
     SafeToHash (..),
     hashAnnotated,
   )
-import Cardano.Ledger.Serialization (mapFromCBOR)
 import Cardano.Ledger.Shelley.Metadata (Metadatum, validMetadatum)
 import qualified Codec.Serialise as Cborg (Serialise (..))
 import Control.DeepSeq (NFData)
@@ -95,10 +99,10 @@ import qualified PlutusLedgerApi.V1 as Plutus
 -- instances to also work in the ledger.
 
 instance FromCBOR (Annotator Plutus.Data) where
-  fromCBOR = pure <$> Cborg.decode
+  fromCBOR = pure <$> fromPlainDecoder Cborg.decode
 
 instance ToCBOR Plutus.Data where
-  toCBOR = Cborg.encode
+  toCBOR = fromPlainEncoding . Cborg.encode
 
 deriving instance NoThunks Plutus.Data
 
@@ -112,7 +116,7 @@ newtype PlutusData era = PlutusData Plutus.Data
   deriving newtype (Eq, Generic, Show, ToCBOR, NFData, NoThunks, Cborg.Serialise)
 
 instance Typeable era => FromCBOR (Annotator (PlutusData era)) where
-  fromCBOR = pure <$> Cborg.decode
+  fromCBOR = pure <$> fromPlainDecoder Cborg.decode
 
 newtype Data era = DataConstr (MemoBytes PlutusData era)
   deriving (Eq, Generic)
@@ -168,9 +172,9 @@ makeBinaryData sbs = do
     Left e -> Left $ "Invalid CBOR for Data: " <> show e
     Right _d -> Right binaryData
 
-decodeBinaryData :: Era era => BinaryData era -> Either DecoderError (Data era)
+decodeBinaryData :: forall era. Era era => BinaryData era -> Either DecoderError (Data era)
 decodeBinaryData (BinaryData sbs) = do
-  plutusData <- decodeAnnotator "Data" fromCBOR (fromStrict (fromShort sbs))
+  plutusData <- decodeFullAnnotator (eraProtVerLow @era) "Data" fromCBOR (fromStrict (fromShort sbs))
   pure (DataConstr (mkMemoBytes plutusData $ shortToLazy sbs))
 
 -- | It is safe to convert `BinaryData` to `Data` because the only way to
@@ -276,10 +280,10 @@ encodeRaw metadata allScripts =
   Tag 259 $
     Keyed
       (\m tss p1 p2 -> AuxiliaryDataRaw m (StrictSeq.fromList $ tss <> p1 <> p2))
-      !> Omit null (Key 0 $ mapEncode metadata)
-      !> Omit null (Key 1 $ E (encodeFoldable . mapMaybe getTimelock) timelocks)
-      !> Omit null (Key 2 $ E (encodeFoldable . mapMaybe getPlutus) plutusV1Scripts)
-      !> Omit null (Key 3 $ E (encodeFoldable . mapMaybe getPlutus) plutusV2Scripts)
+      !> Omit null (Key 0 $ To metadata)
+      !> Omit null (Key 1 $ E (toCBOR . mapMaybe getTimelock) timelocks)
+      !> Omit null (Key 2 $ E (toCBOR . mapMaybe getPlutus) plutusV1Scripts)
+      !> Omit null (Key 3 $ E (toCBOR . mapMaybe getPlutus) plutusV2Scripts)
   where
     getTimelock (TimelockScript x) = Just x
     getTimelock _ = Nothing
@@ -313,13 +317,13 @@ instance
       decodeShelley =
         decode
           ( Ann (Emit AuxiliaryDataRaw)
-              <*! Ann (D mapFromCBOR)
+              <*! Ann From
               <*! Ann (Emit StrictSeq.empty)
           )
       decodeShelleyMA =
         decode
           ( Ann (RecD AuxiliaryDataRaw)
-              <*! Ann (D mapFromCBOR)
+              <*! Ann From
               <*! D
                 ( sequence
                     <$> decodeStrictSeq
@@ -332,7 +336,7 @@ instance
             SparseKeyed "AuxiliaryData" (pure emptyAuxData) auxDataField []
 
       auxDataField :: Word -> Field (Annotator (AuxiliaryDataRaw era))
-      auxDataField 0 = fieldA (\x ad -> ad {txMD' = x}) (D mapFromCBOR)
+      auxDataField 0 = fieldA (\x ad -> ad {txMD' = x}) From
       auxDataField 1 =
         fieldAA
           (\x ad -> ad {scripts' = scripts' ad <> (TimelockScript <$> x)})

@@ -246,12 +246,13 @@ validateOutputTooBigUTxO ::
 validateOutputTooBigUTxO pp (UTxO outputs) =
   failureUnless (null outputsTooBig) $ OutputTooBigUTxO outputsTooBig
   where
+    version = pvMajor (getField @"_protocolVersion" pp)
     maxValSize = 4000 :: Int64
     outputsTooBig =
       filter
         ( \out ->
             let v = out ^. valueTxOutL
-             in BSL.length (serialize (pvMajor (getField @"_protocolVersion" pp)) v) > maxValSize
+             in BSL.length (serialize version v) > maxValSize
         )
         (Map.elems outputs)
 
