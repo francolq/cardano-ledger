@@ -20,11 +20,17 @@ module Cardano.Protocol.TPraos.OCert
   )
 where
 
-import Cardano.Binary (FromCBOR (..), ToCBOR (..), toCBOR)
 import qualified Cardano.Crypto.DSIGN as DSIGN
 import qualified Cardano.Crypto.KES as KES
 import Cardano.Crypto.Util (SignableRepresentation (..))
 import Cardano.Ledger.BaseTypes
+import Cardano.Ledger.Binary
+  ( FromCBOR (..),
+    ToCBOR (..),
+    encodedSigDSIGNSizeExpr,
+    encodedVerKeyKESSizeExpr,
+  )
+import Cardano.Ledger.Binary.Crypto
 import Cardano.Ledger.Crypto (Crypto, KES)
 import Cardano.Ledger.Keys
   ( KeyHash,
@@ -32,12 +38,8 @@ import Cardano.Ledger.Keys
     SignedDSIGN,
     VerKeyKES,
     coerceKeyRole,
-    decodeSignedDSIGN,
-    decodeVerKeyKES,
-    encodeSignedDSIGN,
-    encodeVerKeyKES,
   )
-import Cardano.Ledger.Serialization
+import Cardano.Ledger.Binary
   ( CBORGroup (..),
     FromCBORGroup (..),
     ToCBORGroup (..),
@@ -109,10 +111,10 @@ instance
       <> toCBOR (ocertKESPeriod ocert)
       <> encodeSignedDSIGN (ocertSigma ocert)
   encodedGroupSizeExpr size proxy =
-    KES.encodedVerKeyKESSizeExpr (ocertVkHot <$> proxy)
+    encodedVerKeyKESSizeExpr (ocertVkHot <$> proxy)
       + encodedSizeExpr size (toWord . ocertN <$> proxy)
       + encodedSizeExpr size ((\(KESPeriod p) -> p) . ocertKESPeriod <$> proxy)
-      + DSIGN.encodedSigDSIGNSizeExpr ((\(DSIGN.SignedDSIGN sig) -> sig) . ocertSigma <$> proxy)
+      + encodedSigDSIGNSizeExpr ((\(DSIGN.SignedDSIGN sig) -> sig) . ocertSigma <$> proxy)
     where
       toWord :: Word64 -> Word
       toWord = fromIntegral

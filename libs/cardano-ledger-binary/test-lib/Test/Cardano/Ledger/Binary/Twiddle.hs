@@ -119,10 +119,10 @@ instance (Twiddle a, Arbitrary a, ToCBOR a) => Arbitrary (Twiddler a) where
 instance (Twiddle a, Ord a) => Twiddle (Set a) where
   twiddle = twiddle . toList
 
-instance (Twiddle a, Ord a) => Twiddle (Seq a) where
+instance Twiddle a => Twiddle (Seq a) where
   twiddle = twiddle . toList
 
-instance (Twiddle a, Ord a) => Twiddle (StrictSeq a) where
+instance Twiddle a => Twiddle (StrictSeq a) where
   twiddle = twiddle . toList
 
 instance Typeable a => ToCBOR (Twiddler a) where

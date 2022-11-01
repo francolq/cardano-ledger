@@ -30,7 +30,14 @@ import Cardano.Crypto.KES.Mock (MockKES)
 import Cardano.Crypto.KES.Simple (SimpleKES)
 import Cardano.Crypto.KES.Single (SingleKES)
 import Cardano.Crypto.KES.Sum (SumKES)
-import Cardano.Crypto.VRF.Class (CertVRF, SignKeyVRF, VerKeyVRF)
+import Cardano.Crypto.VRF.Class
+  ( CertVRF,
+    CertifiedVRF (..),
+    OutputVRF (..),
+    SignKeyVRF,
+    VRFAlgorithm,
+    VerKeyVRF,
+  )
 import Cardano.Crypto.VRF.Mock (MockVRF)
 import qualified Cardano.Crypto.VRF.Praos as Praos
 import Cardano.Crypto.VRF.Simple (SimpleVRF)
@@ -570,6 +577,15 @@ deriving instance FromCBOR (VerKeyVRF Praos.PraosVRF)
 deriving instance FromCBOR (SignKeyVRF Praos.PraosVRF)
 
 deriving instance FromCBOR (CertVRF Praos.PraosVRF)
+
+deriving instance Typeable v => FromCBOR (OutputVRF v)
+
+instance (VRFAlgorithm v, Typeable a) => FromCBOR (CertifiedVRF v a) where
+  fromCBOR =
+    CertifiedVRF
+      <$ enforceSize "CertifiedVRF" 2
+      <*> fromCBOR
+      <*> decodeCertVRF
 
 --------------------------------------------------------------------------------
 -- Slotting

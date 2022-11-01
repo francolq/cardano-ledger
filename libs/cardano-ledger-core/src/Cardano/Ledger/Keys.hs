@@ -46,19 +46,19 @@ module Cardano.Ledger.Keys
     VRFSignable,
 
     -- * Re-exports from cardano-crypto-class
-    DSIGN.decodeSignedDSIGN,
-    DSIGN.encodeSignedDSIGN,
+    decodeSignedDSIGN,
+    encodeSignedDSIGN,
     Hash.hashWithSerialiser,
-    KES.decodeSignedKES,
-    KES.decodeVerKeyKES,
-    KES.encodeSignedKES,
-    KES.encodeVerKeyKES,
+    decodeSignedKES,
+    decodeVerKeyKES,
+    encodeSignedKES,
+    encodeVerKeyKES,
     KES.signedKES,
     KES.updateKES,
     KES.verifyKES,
     KES.verifySignedKES,
-    VRF.decodeVerKeyVRF,
-    VRF.encodeVerKeyVRF,
+    decodeVerKeyVRF,
+    encodeVerKeyVRF,
     VRF.hashVerKeyVRF,
     VRF.verifyVRF,
 
@@ -79,8 +79,14 @@ import qualified Cardano.Crypto.DSIGN as DSIGN
 import qualified Cardano.Crypto.Hash as Hash
 import qualified Cardano.Crypto.KES as KES
 import qualified Cardano.Crypto.VRF as VRF
-import Cardano.Ledger.Binary (FromCBOR (..), ToCBOR (..), decodeRecordNamed, encodeListLen, encodedVerKeyDSIGNSizeExpr)
-import Cardano.Ledger.Binary.Crypto (decodeVerKeyDSIGN, encodeVerKeyDSIGN)
+import Cardano.Ledger.Binary
+  ( FromCBOR (..),
+    ToCBOR (..),
+    decodeRecordNamed,
+    encodeListLen,
+    encodedVerKeyDSIGNSizeExpr,
+  )
+import Cardano.Ledger.Binary.Crypto
 import Cardano.Ledger.Crypto (ADDRHASH, Crypto, DSIGN, HASH, KES, VRF)
 import Control.DeepSeq (NFData)
 import Data.Aeson (FromJSON (..), FromJSONKey, ToJSON (..), ToJSONKey, (.:), (.=))
@@ -318,9 +324,9 @@ instance Crypto c => FromJSON (GenDelegPair c) where
     Aeson.withObject "GenDelegPair" $ \obj ->
       GenDelegPair
         <$> obj
-        .: "delegate"
+          .: "delegate"
         <*> obj
-        .: "vrf"
+          .: "vrf"
 
 newtype GenDelegs c = GenDelegs
   { unGenDelegs :: Map (KeyHash 'Genesis c) (GenDelegPair c)

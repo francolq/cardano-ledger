@@ -120,8 +120,7 @@ mkTrip encoder decoder = Trip encoder decoder (() <$ decoder)
 roundTrip :: Typeable t => Version -> Trip t t -> t -> Either RoundTripFailure t
 roundTrip = embedTrip
 
-roundTripTwiddled ::
-  forall t. (Twiddle t, FromCBOR t) => Version -> t -> Gen (Either RoundTripFailure t)
+roundTripTwiddled :: forall t. Twiddle t => Version -> t -> Gen (Either RoundTripFailure t)
 roundTripTwiddled version x = do
   tw <- twiddle x
   pure (roundTrip version (Trip (const (encodeTerm tw)) fromCBOR (dropCBOR (Proxy @t))) x)

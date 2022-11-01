@@ -31,11 +31,11 @@ common project-config
 library
   import:             project-config
   build-depends:      bytestring
-                    , cardano-binary
                     , cardano-data
                     , cardano-crypto-class
-                    , cardano-ledger-core
                     , cardano-ledger-alonzo
+                    , cardano-ledger-binary
+                    , cardano-ledger-core
                     , cardano-ledger-shelley
                     , cardano-ledger-shelley-ma
                     , conduit

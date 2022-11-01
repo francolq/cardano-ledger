@@ -45,6 +45,9 @@ module Cardano.Ledger.Binary.Encoding.ToCBOR
     encodedVerKeyKESSizeExpr,
     encodedSignKeyKESSizeExpr,
     encodedSigKESSizeExpr,
+    encodedVerKeyVRFSizeExpr,
+    encodedSignKeyVRFSizeExpr,
+    encodedCertVRFSizeExpr,
   )
 where
 
@@ -87,10 +90,13 @@ import Cardano.Crypto.KES.Single (SingleKES)
 import Cardano.Crypto.KES.Sum (SumKES)
 import Cardano.Crypto.VRF.Class
   ( CertVRF,
+    CertifiedVRF (..),
+    OutputVRF (..),
     SignKeyVRF,
     VRFAlgorithm,
     VerKeyVRF,
     sizeCertVRF,
+    sizeOutputVRF,
     sizeSignKeyVRF,
     sizeVerKeyVRF,
   )
@@ -1103,6 +1109,23 @@ instance ToCBOR (SignKeyVRF MockVRF) where
 instance ToCBOR (CertVRF MockVRF) where
   toCBOR = encodeCertVRF
   encodedSizeExpr _size = encodedCertVRFSizeExpr
+
+deriving instance Typeable v => ToCBOR (OutputVRF v)
+
+instance (VRFAlgorithm v, Typeable a) => ToCBOR (CertifiedVRF v a) where
+  toCBOR cvrf =
+    encodeListLen 2
+      <> toCBOR (certifiedOutput cvrf)
+      <> encodeCertVRF (certifiedProof cvrf)
+
+  encodedSizeExpr _size proxy =
+    1
+      + certifiedOutputSize (certifiedOutput <$> proxy)
+      + fromIntegral (sizeCertVRF (Proxy :: Proxy v))
+    where
+      certifiedOutputSize :: Proxy (OutputVRF v) -> Size
+      certifiedOutputSize _proxy =
+        fromIntegral $ sizeOutputVRF (Proxy :: Proxy v)
 
 instance ToCBOR Praos.Proof where
   toCBOR = toCBOR . Praos.proofBytes
