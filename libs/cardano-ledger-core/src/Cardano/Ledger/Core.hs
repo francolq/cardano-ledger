@@ -649,12 +649,12 @@ translateEraMaybe ctxt =
 
 -- | Translate a type through its binary representation from previous era to the current one.
 translateEraThroughCBOR ::
-  forall era f.
-  (Era era, Era (PreviousEra era), ToCBOR (f (PreviousEra era)), FromCBOR (Annotator (f era))) =>
+  forall era ti to.
+  (Era era, Era (PreviousEra era), ToCBOR (ti (PreviousEra era)), FromCBOR (Annotator (to era))) =>
   -- | Label for error reporting
   Text ->
-  f (PreviousEra era) ->
-  Except DecoderError (f era)
+  ti (PreviousEra era) ->
+  Except DecoderError (to era)
 translateEraThroughCBOR =
   translateViaCBORAnnotator (eraProtVerHigh @(PreviousEra era)) (eraProtVerLow @era)
 

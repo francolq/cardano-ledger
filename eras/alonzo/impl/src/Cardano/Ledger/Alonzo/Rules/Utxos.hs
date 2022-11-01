@@ -32,7 +32,6 @@ module Cardano.Ledger.Alonzo.Rules.Utxos
   )
 where
 
-import Cardano.Binary (FromCBOR (..), ToCBOR (..), serialize')
 import Cardano.Ledger.Alonzo.Era (AlonzoUTXOS)
 import Cardano.Ledger.Alonzo.PlutusScriptApi
   ( CollectError (..),
@@ -56,12 +55,14 @@ import Cardano.Ledger.Alonzo.TxWits (AlonzoEraTxWits)
 import Cardano.Ledger.Alonzo.UTxO (AlonzoScriptsNeeded)
 import Cardano.Ledger.BaseTypes
   ( Globals,
-    ProtVer,
+    ProtVer (..),
     ShelleyBase,
     epochInfo,
     strictMaybeToMaybe,
     systemStart,
   )
+import Cardano.Ledger.Binary (FromCBOR (..), ToCBOR (..), serialize')
+import Cardano.Ledger.Binary.Coders
 import Cardano.Ledger.Coin
 import Cardano.Ledger.Core
 import Cardano.Ledger.Rules.ValidationMode (Inject (..), lblStatic)
@@ -88,7 +89,6 @@ import Control.Monad.Trans.Reader (ReaderT, asks)
 import Control.State.Transition.Extended
 import Data.ByteString as BS (ByteString)
 import qualified Data.ByteString.Base64 as B64
-import Data.Coders
 import Data.Foldable (toList)
 import Data.List (intercalate)
 import Data.List.NonEmpty (NonEmpty (..), nonEmpty)
@@ -163,7 +163,6 @@ utxosTransition ::
     HasField "_costmdls" (PParams era) CostModels,
     HasField "_keyDeposit" (PParams era) Coin,
     HasField "_poolDeposit" (PParams era) Coin,
-    HasField "_protocolVersion" (PParams era) ProtVer,
     ToCBOR (PredicateFailure (EraRule "PPUP" era)) -- Serializing the PredicateFailure
   ) =>
   TransitionRule (AlonzoUTXOS era)
@@ -186,7 +185,6 @@ scriptsTransition ::
     EraUTxO era,
     ScriptsNeeded era ~ AlonzoScriptsNeeded era,
     HasField "_costmdls" (PParams era) CostModels,
-    HasField "_protocolVersion" (PParams era) ProtVer,
     BaseM sts ~ ReaderT Globals m,
     PredicateFailure sts ~ AlonzoUtxosPredFailure era
   ) =>
@@ -227,8 +225,7 @@ scriptsValidateTransition ::
     Embed (EraRule "PPUP" era) (AlonzoUTXOS era),
     HasField "_costmdls" (PParams era) CostModels,
     HasField "_keyDeposit" (PParams era) Coin,
-    HasField "_poolDeposit" (PParams era) Coin,
-    HasField "_protocolVersion" (PParams era) ProtVer
+    HasField "_poolDeposit" (PParams era) Coin
   ) =>
   TransitionRule (AlonzoUTXOS era)
 scriptsValidateTransition = do
@@ -239,6 +236,7 @@ scriptsValidateTransition = do
       txcerts = toList $ txBody ^. certsTxBodyL
       depositChange =
         totalDeposits pp (`Map.notMember` poolParams) txcerts <-> refunded
+      protVer = getField @"_protocolVersion" pp
 
   () <- pure $! traceEvent validBegin ()
 
@@ -247,7 +245,7 @@ scriptsValidateTransition = do
       failBecause $
         ValidationTagMismatch
           (tx ^. isValidTxL)
-          (FailedUnexpectedly (scriptFailuresToPredicateFailure fs))
+          (FailedUnexpectedly (scriptFailuresToPredicateFailure protVer fs))
     Passes ps -> mapM_ (tellEvent . SuccessfulPlutusScriptsEvent) (nonEmpty ps)
 
   () <- pure $! traceEvent validEnd ()
@@ -267,8 +265,7 @@ scriptsNotValidateTransition ::
     ScriptsNeeded era ~ AlonzoScriptsNeeded era,
     STS (AlonzoUTXOS era),
     Script era ~ AlonzoScript era,
-    HasField "_costmdls" (PParams era) CostModels,
-    HasField "_protocolVersion" (PParams era) ProtVer
+    HasField "_costmdls" (PParams era) CostModels
   ) =>
   TransitionRule (AlonzoUTXOS era)
 scriptsNotValidateTransition = do
@@ -327,12 +324,12 @@ instance FromCBOR FailureDescription where
       dec 1 = SumD PlutusFailure <! From <! From
       dec n = Invalid n
 
-scriptFailureToFailureDescription :: ScriptFailure -> FailureDescription
-scriptFailureToFailureDescription (PlutusSF t pd) =
-  PlutusFailure t (B64.encode $ serialize' pd)
+scriptFailureToFailureDescription :: ProtVer -> ScriptFailure -> FailureDescription
+scriptFailureToFailureDescription protVer (PlutusSF t pd) =
+  PlutusFailure t (B64.encode $ serialize' (pvMajor protVer) pd)
 
-scriptFailuresToPredicateFailure :: NonEmpty ScriptFailure -> NonEmpty FailureDescription
-scriptFailuresToPredicateFailure = fmap scriptFailureToFailureDescription
+scriptFailuresToPredicateFailure :: ProtVer -> NonEmpty ScriptFailure -> NonEmpty FailureDescription
+scriptFailuresToPredicateFailure protVer = fmap (scriptFailureToFailureDescription protVer)
 
 scriptFailuresToPlutusDebug :: NonEmpty ScriptFailure -> NonEmpty PlutusDebug
 scriptFailuresToPlutusDebug = fmap (\(PlutusSF _ pdb) -> pdb)
