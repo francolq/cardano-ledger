@@ -11,6 +11,7 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
@@ -109,10 +110,6 @@ module Cardano.Ledger.Babbage.TxBody
   )
 where
 
-import Cardano.Binary
-  ( FromCBOR (..),
-    ToCBOR (..),
-  )
 import Cardano.Ledger.Alonzo.Data
   ( AuxiliaryDataHash (..),
     Datum (..),
@@ -133,6 +130,17 @@ import Cardano.Ledger.BaseTypes
   ( Network (..),
     StrictMaybe (..),
   )
+import Cardano.Ledger.Binary
+  ( Annotator (..),
+    FromCBOR (..),
+    Sized (..),
+    ToCBOR (..),
+    decodeMap,
+    decodeSized,
+    decodeStrictSeq,
+    mkSized,
+  )
+import Cardano.Ledger.Binary.Coders
 import Cardano.Ledger.Coin (Coin (..))
 import Cardano.Ledger.CompactAddress
   ( fromCborBothAddr,
@@ -150,7 +158,6 @@ import Cardano.Ledger.SafeHash
     SafeHash,
     SafeToHash,
   )
-import Cardano.Ledger.Serialization (Sized (..), mkSized, sizedDecoder)
 import Cardano.Ledger.Shelley.Delegation.Certificates (DCert)
 import Cardano.Ledger.Shelley.PParams (Update)
 import Cardano.Ledger.Shelley.TxBody (Wdrl (Wdrl), unWdrl)
@@ -163,7 +170,6 @@ import Cardano.Ledger.Val
     encodeMint,
   )
 import Control.DeepSeq (NFData)
-import Data.Coders hiding (to)
 import Data.Sequence.Strict (StrictSeq, (|>))
 import qualified Data.Sequence.Strict as StrictSeq
 import Data.Set (Set)
@@ -243,11 +249,11 @@ inputsBabbageTxBodyL =
 {-# INLINEABLE inputsBabbageTxBodyL #-}
 
 outputsBabbageTxBodyL ::
-  BabbageEraTxBody era => Lens' (BabbageTxBody era) (StrictSeq (BabbageTxOut era))
+  forall era. BabbageEraTxBody era => Lens' (BabbageTxBody era) (StrictSeq (BabbageTxOut era))
 outputsBabbageTxBodyL =
   lensTxBodyRaw
     (fmap sizedValue . _outputs)
-    (\txBodyRaw outputs_ -> txBodyRaw {_outputs = mkSized <$> outputs_})
+    (\txBodyRaw outputs_ -> txBodyRaw {_outputs = mkSized (eraProtVerLow @era) <$> outputs_})
 {-# INLINEABLE outputsBabbageTxBodyL #-}
 
 feeBabbageTxBodyL :: BabbageEraTxBody era => Lens' (BabbageTxBody era) Coin
@@ -363,12 +369,18 @@ totalCollateralBabbageTxBodyL =
 {-# INLINEABLE totalCollateralBabbageTxBodyL #-}
 
 collateralReturnBabbageTxBodyL ::
+  forall era.
   BabbageEraTxBody era =>
   Lens' (BabbageTxBody era) (StrictMaybe (BabbageTxOut era))
 collateralReturnBabbageTxBodyL =
   lensTxBodyRaw
     (fmap sizedValue . _collateralReturn)
-    (\txBodyRaw collateralReturn_ -> txBodyRaw {_collateralReturn = mkSized <$> collateralReturn_})
+    ( \txBodyRaw collateralReturn_ ->
+        txBodyRaw
+          { _collateralReturn =
+              mkSized (eraProtVerLow @era) <$> collateralReturn_
+          }
+    )
 {-# INLINEABLE collateralReturnBabbageTxBodyL #-}
 
 sizedCollateralReturnBabbageTxBodyL ::
@@ -706,19 +718,19 @@ encodeTxBodyRaw
       ( \i ifee ri o cr tc f t c w u b rsh mi sh ah ni ->
           TxBodyRaw i ifee ri o cr tc c w f (ValidityInterval b t) u rsh mi sh ah ni
       )
-      !> Key 0 (E encodeFoldable _spendInputs)
-      !> Omit null (Key 13 (E encodeFoldable _collateralInputs))
-      !> Omit null (Key 18 (E encodeFoldable _referenceInputs))
-      !> Key 1 (E encodeFoldable _outputs)
+      !> Key 0 (To _spendInputs)
+      !> Omit null (Key 13 (To _collateralInputs))
+      !> Omit null (Key 18 (To _referenceInputs))
+      !> Key 1 (To _outputs)
       !> encodeKeyedStrictMaybe 16 _collateralReturn
       !> encodeKeyedStrictMaybe 17 _totalCollateral
       !> Key 2 (To _txfee)
       !> encodeKeyedStrictMaybe 3 top
-      !> Omit null (Key 4 (E encodeFoldable _certs))
+      !> Omit null (Key 4 (To _certs))
       !> Omit (null . unWdrl) (Key 5 (To _wdrls))
       !> encodeKeyedStrictMaybe 6 _update
       !> encodeKeyedStrictMaybe 8 bot
-      !> Omit null (Key 14 (E encodeFoldable _reqSignerHashes))
+      !> Omit null (Key 14 (To _reqSignerHashes))
       !> Omit (== mempty) (Key 9 (E encodeMint _mint))
       !> encodeKeyedStrictMaybe 11 _scriptIntegrityHash
       !> encodeKeyedStrictMaybe 7 _adHash
@@ -743,25 +755,19 @@ instance
     where
       bodyFields :: (Word -> Field (TxBodyRaw era))
       bodyFields 0 =
-        field
-          (\x tx -> tx {_spendInputs = x})
-          (D (decodeSet fromCBOR))
+        field (\x tx -> tx {_spendInputs = x}) From
       bodyFields 13 =
-        field
-          (\x tx -> tx {_collateralInputs = x})
-          (D (decodeSet fromCBOR))
+        field (\x tx -> tx {_collateralInputs = x}) From
       bodyFields 18 =
-        field
-          (\x tx -> tx {_referenceInputs = x})
-          (D (decodeSet fromCBOR))
+        field (\x tx -> tx {_referenceInputs = x}) From
       bodyFields 1 =
         field
           (\x tx -> tx {_outputs = x})
-          (D (decodeStrictSeq (sizedDecoder (fromCborTxOutWithAddr fromCborBothAddr))))
+          (D (decodeStrictSeq (decodeSized (fromCborTxOutWithAddr fromCborBothAddr))))
       bodyFields 16 =
         ofield
           (\x tx -> tx {_collateralReturn = x})
-          (D (sizedDecoder (fromCborTxOutWithAddr fromCborBothAddr)))
+          (D (decodeSized (fromCborTxOutWithAddr fromCborBothAddr)))
       bodyFields 17 =
         ofield
           (\x tx -> tx {_totalCollateral = x})
@@ -774,7 +780,7 @@ instance
       bodyFields 4 =
         field
           (\x tx -> tx {_certs = x})
-          (D (decodeStrictSeq fromCBOR))
+          From
       bodyFields 5 =
         field
           (\x tx -> tx {_wdrls = x})
@@ -787,7 +793,7 @@ instance
           From
       bodyFields 9 = field (\x tx -> tx {_mint = x}) (D decodeMint)
       bodyFields 11 = ofield (\x tx -> tx {_scriptIntegrityHash = x}) From
-      bodyFields 14 = field (\x tx -> tx {_reqSignerHashes = x}) (D (decodeSet fromCBOR))
+      bodyFields 14 = field (\x tx -> tx {_reqSignerHashes = x}) From
       bodyFields 15 = ofield (\x tx -> tx {_txnetworkid = x}) From
       bodyFields n = field (\_ t -> t) (Invalid n)
       requiredFields =

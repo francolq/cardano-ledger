@@ -102,14 +102,14 @@ instance
     -- Note that this does not preserve the hidden bytes field of the transaction.
     -- This is under the premise that this is irrelevant for TxInBlocks, which are
     -- not transmitted as contiguous chunks.
-    bdy <- Core.translateEraThroughCBOR "TxBody" $ LTX.body tx
-    txwits <- Core.translateEraThroughCBOR "TxWits" $ LTX.wits tx
+    txBody <- Core.translateEraThroughCBOR "TxBody" $ LTX.body tx
+    txWits <- Core.translateEraThroughCBOR "TxWits" $ LTX.wits tx
     -- transactions from Mary era always pass script ("phase 2") validation
-    aux <- case LTX.auxiliaryData tx of
+    auxData <- case LTX.auxiliaryData tx of
       SNothing -> pure SNothing
-      SJust axd -> SJust <$> Core.translateEraThroughCBOR "AuxData" axd
+      SJust auxData -> SJust <$> Core.translateEraThroughCBOR "AuxData" auxData
     let validating = IsValid True
-    pure $ Tx $ AlonzoTx bdy txwits validating aux
+    pure $ Tx $ AlonzoTx txBody txWits validating auxData
 
 --------------------------------------------------------------------------------
 -- Auxiliary instances and functions
