@@ -32,10 +32,7 @@ import Data.Proxy (Proxy (..))
 import Data.Word (Word64)
 import GHC.TypeLits (KnownNat, natVal, type (<=))
 import NoThunks.Class (NoThunks)
-#if __GLASGOW_HASKELL__ < 900
--- This import is redundant wih ghc-9.2.
 import Numeric.Natural (Natural)
-#endif
 
 --------------------------------------------------------------------------------
 -- Version

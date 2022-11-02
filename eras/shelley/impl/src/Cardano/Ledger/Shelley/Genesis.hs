@@ -31,6 +31,18 @@ import qualified Cardano.Crypto.Hash.Class as Crypto
 import Cardano.Crypto.KES.Class (totalPeriodsKES)
 import Cardano.Ledger.Address
 import Cardano.Ledger.BaseTypes
+  ( ActiveSlotCoeff,
+    BoundedRational (unboundRational),
+    EpochSize (..),
+    Globals (..),
+    Network,
+    PositiveUnitInterval,
+    SystemStart (SystemStart),
+    Version,
+    boundedRationalFromCBOR,
+    boundedRationalToCBOR,
+    mkActiveSlotCoeff,
+  )
 import Cardano.Ledger.Binary (FromCBOR (..), ToCBOR (..), decodeRecordNamed, encodeListLen)
 import Cardano.Ledger.Coin (Coin)
 import Cardano.Ledger.Core
@@ -45,8 +57,6 @@ import Cardano.Ledger.Shelley.UTxO (UTxO (UTxO))
 import Cardano.Ledger.TxIn (TxId (..), TxIn (..))
 import qualified Cardano.Ledger.Val as Val
 import Cardano.Slotting.EpochInfo (EpochInfo)
-import Cardano.Slotting.Slot (EpochSize (..))
-import Cardano.Slotting.Time (SystemStart (SystemStart))
 import Data.Aeson (FromJSON (..), ToJSON (..), (.!=), (.:), (.:?), (.=))
 import qualified Data.Aeson as Aeson
 import qualified Data.ListMap as LM
@@ -189,32 +199,32 @@ instance Era era => FromJSON (ShelleyGenesis era) where
       ShelleyGenesis
         <$> (forceUTCTime <$> obj .: "systemStart")
         <*> obj
-        .: "networkMagic"
+          .: "networkMagic"
         <*> obj
-        .: "networkId"
+          .: "networkId"
         <*> obj
-        .: "activeSlotsCoeff"
+          .: "activeSlotsCoeff"
         <*> obj
-        .: "securityParam"
+          .: "securityParam"
         <*> obj
-        .: "epochLength"
+          .: "epochLength"
         <*> obj
-        .: "slotsPerKESPeriod"
+          .: "slotsPerKESPeriod"
         <*> obj
-        .: "maxKESEvolutions"
+          .: "maxKESEvolutions"
         <*> obj
-        .: "slotLength"
+          .: "slotLength"
         <*> obj
-        .: "updateQuorum"
+          .: "updateQuorum"
         <*> obj
-        .: "maxLovelaceSupply"
+          .: "maxLovelaceSupply"
         <*> obj
-        .: "protocolParams"
+          .: "protocolParams"
         <*> (forceElemsToWHNF <$> obj .: "genDelegs")
         <*> (forceElemsToWHNF <$> obj .: "initialFunds")
         <*> obj
-        .:? "staking"
-        .!= emptyGenesisStaking
+          .:? "staking"
+          .!= emptyGenesisStaking
     where
       forceUTCTime date =
         let !day = utctDay date

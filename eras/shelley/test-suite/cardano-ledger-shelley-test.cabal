@@ -1,4 +1,4 @@
-cabal-version: 2.2
+cabal-version: 3.0
 
 name:                cardano-ledger-shelley-test
 version:             0.1.0.0
@@ -90,7 +90,7 @@ library
                 cardano-crypto-test,
                 cardano-crypto-wrapper,
                 cardano-data,
-                cardano-ledger-binary,
+                cardano-ledger-binary:{cardano-ledger-binary, testlib},
                 cardano-ledger-byron,
                 cardano-ledger-byron-test,
                 cardano-ledger-core,
@@ -177,7 +177,7 @@ test-suite cardano-ledger-shelley-test
                 base16-bytestring >= 1,
                 binary,
                 bytestring,
-                cardano-binary,
+                cardano-ledger-binary,
                 cardano-crypto-class,
                 cardano-data,
                 cardano-ledger-byron,
@@ -216,7 +216,7 @@ benchmark mainbench
   other-modules:
     BenchUTxOAggregate,
     BenchValidation,
-    Cardano.Ledger.Shelley.Bench.Gen
+    Cardano.Ledger.Shelley.Bench.Gen,
     Cardano.Ledger.Shelley.Bench.Rewards
 
   build-depends:

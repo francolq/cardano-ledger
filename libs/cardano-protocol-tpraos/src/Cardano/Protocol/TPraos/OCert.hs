@@ -25,10 +25,14 @@ import qualified Cardano.Crypto.KES as KES
 import Cardano.Crypto.Util (SignableRepresentation (..))
 import Cardano.Ledger.BaseTypes
 import Cardano.Ledger.Binary
-  ( FromCBOR (..),
+  ( CBORGroup (..),
+    FromCBOR (..),
+    FromCBORGroup (..),
     ToCBOR (..),
+    ToCBORGroup (..),
     encodedSigDSIGNSizeExpr,
     encodedVerKeyKESSizeExpr,
+    runByteBuilder,
   )
 import Cardano.Ledger.Binary.Crypto
 import Cardano.Ledger.Crypto (Crypto, KES)
@@ -39,13 +43,6 @@ import Cardano.Ledger.Keys
     VerKeyKES,
     coerceKeyRole,
   )
-import Cardano.Ledger.Binary
-  ( CBORGroup (..),
-    FromCBORGroup (..),
-    ToCBORGroup (..),
-    runByteBuilder,
-  )
-import Cardano.Ledger.Slot (SlotNo (..))
 import Control.Monad.Trans.Reader (asks)
 import qualified Data.ByteString.Builder as BS
 import qualified Data.ByteString.Builder.Extra as BS

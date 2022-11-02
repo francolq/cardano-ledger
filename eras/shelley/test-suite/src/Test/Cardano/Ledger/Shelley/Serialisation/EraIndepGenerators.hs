@@ -24,29 +24,26 @@ module Test.Cardano.Ledger.Shelley.Serialisation.EraIndepGenerators
   )
 where
 
-import Cardano.Binary
-  ( ToCBOR (..),
-    toCBOR,
-  )
 import Cardano.Crypto.DSIGN.Class
   ( DSIGNAlgorithm,
     SignedDSIGN (..),
     rawDeserialiseSigDSIGN,
-    rawDeserialiseVerKeyDSIGN,
     sizeSigDSIGN,
-    sizeVerKeyDSIGN,
   )
 import Cardano.Crypto.DSIGN.Mock (VerKeyDSIGN (..))
-import Cardano.Crypto.Hash (HashAlgorithm, hashWithSerialiser)
+import Cardano.Crypto.Hash (HashAlgorithm)
 import qualified Cardano.Crypto.Hash as Hash
 import Cardano.Ledger.AuxiliaryData (AuxiliaryDataHash (..))
 import Cardano.Ledger.BaseTypes
   ( ActiveSlotCoeff,
+    BlockNo (..),
     BlocksMade (..),
     DnsName,
+    EpochSize (..),
     NonNegativeInterval,
     PositiveInterval,
     PositiveUnitInterval,
+    SlotNo (..),
     UnitInterval,
     Url,
     mkActiveSlotCoeff,
@@ -54,9 +51,11 @@ import Cardano.Ledger.BaseTypes
     mkNonceFromNumber,
     mkTxIxPartial,
     promoteRatio,
+    shelleyProtVer,
     textToDns,
     textToUrl,
   )
+import Cardano.Ledger.Binary (ToCBOR (toCBOR), hashWithEncoder)
 import Cardano.Ledger.Coin (CompactForm (..), DeltaCoin (..))
 import Cardano.Ledger.Core
   ( Era,
@@ -105,22 +104,18 @@ import qualified Cardano.Protocol.TPraos.Rules.Tickn as STS
 import Control.State.Transition (STS (State))
 import qualified Data.ByteString.Char8 as BS
 import Data.Coerce (coerce)
-import Data.IP (IPv4, IPv6, toIPv4, toIPv6)
 import qualified Data.ListMap as LM
 import qualified Data.Map.Strict as Map
 import Data.Maybe (fromJust)
 import Data.Proxy (Proxy (..))
 import Data.Ratio ((%))
-import Data.Sequence.Strict (StrictSeq)
-import qualified Data.Sequence.Strict as StrictSeq
 import qualified Data.Text as T
 import qualified Data.Time as Time
 import qualified Data.Time.Calendar.OrdinalDate as Time
 import Data.Typeable (Typeable)
-import qualified Data.VMap as VMap
 import Data.Word (Word16, Word64, Word8)
 import Generic.Random (genericArbitraryU)
-import Numeric.Natural (Natural)
+import Test.Cardano.Ledger.Binary.Arbitrary ()
 import Test.Cardano.Ledger.Shelley.ConcreteCryptoTypes (Mock)
 import Test.Cardano.Ledger.Shelley.Generator.Constants (defaultConstants)
 import Test.Cardano.Ledger.Shelley.Generator.Core
@@ -157,7 +152,7 @@ genHash :: forall a h. HashAlgorithm h => Gen (Hash.Hash h a)
 genHash = mkDummyHash <$> arbitrary
 
 mkDummyHash :: forall h a. HashAlgorithm h => Int -> Hash.Hash h a
-mkDummyHash = coerce . hashWithSerialiser @h toCBOR
+mkDummyHash = coerce . hashWithEncoder @h shelleyProtVer toCBOR
 
 instance Hash.HashAlgorithm (CC.HASH c) => Arbitrary (SafeHash c i) where
   arbitrary = unsafeMakeSafeHash <$> arbitrary
@@ -186,8 +181,10 @@ instance Mock c => Arbitrary (BHeader c) where
     let kesPeriod = 1
         keyRegKesPeriod = 1
         ocert = mkOCert allPoolKeys 1 (TP.KESPeriod kesPeriod)
+    protVer <- arbitrary
     return $
       mkBlockHeader
+        protVer
         prevHash
         allPoolKeys
         curSlotNo
@@ -203,11 +200,6 @@ instance DSIGNAlgorithm c => Arbitrary (SignedDSIGN c a) where
   arbitrary =
     SignedDSIGN . fromJust . rawDeserialiseSigDSIGN
       <$> (genByteString . fromIntegral $ sizeSigDSIGN (Proxy @c))
-
-instance DSIGNAlgorithm c => Arbitrary (VerKeyDSIGN c) where
-  arbitrary =
-    fromJust . rawDeserialiseVerKeyDSIGN
-      <$> (genByteString . fromIntegral $ sizeVerKeyDSIGN (Proxy @c))
 
 instance CC.Crypto c => Arbitrary (BootstrapWitness c) where
   arbitrary = do
@@ -263,7 +255,7 @@ sizedMetadatum n =
 instance Arbitrary MD.Metadatum where
   arbitrary = sizedMetadatum maxMetadatumDepth
 
-instance Arbitrary (MD.ShelleyTxAuxData era) where
+instance Era era => Arbitrary (MD.ShelleyTxAuxData era) where
   arbitrary = MD.ShelleyTxAuxData <$> arbitrary
 
 maxTxWits :: Int
@@ -328,9 +320,6 @@ instance CC.Crypto c => Arbitrary (MIRTarget c) where
         SendToOppositePotMIR <$> arbitrary
       ]
 
-instance Arbitrary Natural where
-  arbitrary = fromInteger <$> choose (0, 1000)
-
 instance Arbitrary STS.VotingPeriod where
   arbitrary = genericArbitraryU
   shrink = genericShrink
@@ -384,17 +373,13 @@ instance (Arbitrary (VerKeyDSIGN (DSIGN c))) => Arbitrary (VKey kd c) where
   arbitrary = VKey <$> arbitrary
 
 instance Arbitrary ProtVer where
-  arbitrary = genericArbitraryU
-  shrink = genericShrink
+  arbitrary = ProtVer <$> arbitrary <*> arbitrary
 
 instance CC.Crypto c => Arbitrary (ScriptHash c) where
   arbitrary = ScriptHash <$> genHash
 
 instance CC.Crypto c => Arbitrary (AuxiliaryDataHash c) where
   arbitrary = AuxiliaryDataHash <$> arbitrary
-
-instance HashAlgorithm h => Arbitrary (Hash.Hash h a) where
-  arbitrary = genHash
 
 instance Arbitrary STS.TicknState where
   arbitrary = genericArbitraryU
@@ -563,13 +548,6 @@ instance
       <*> arbitrary
       <*> arbitrary
 
-instance
-  (Arbitrary k, Arbitrary v, Ord k, VMap.Vector kv k, VMap.Vector vv v) =>
-  Arbitrary (VMap.VMap kv vv k v)
-  where
-  arbitrary = VMap.fromMap <$> arbitrary
-  shrink = fmap VMap.fromMap . shrink . VMap.toMap
-
 instance Arbitrary RewardType where
   arbitrary = genericArbitraryU
   shrink = genericShrink
@@ -583,10 +561,6 @@ instance CC.Crypto c => Arbitrary (LeaderOnlyReward c) where
   shrink = genericShrink
 
 instance CC.Crypto c => Arbitrary (RewardUpdate c) where
-  arbitrary = genericArbitraryU
-  shrink = genericShrink
-
-instance Arbitrary a => Arbitrary (StrictMaybe a) where
   arbitrary = genericArbitraryU
   shrink = genericShrink
 
@@ -642,22 +616,12 @@ instance Arbitrary PoolMetadata where
 instance Arbitrary Url where
   arbitrary = return . fromJust $ textToUrl "text"
 
-instance Arbitrary a => Arbitrary (StrictSeq a) where
-  arbitrary = StrictSeq.forceToStrict <$> arbitrary
-  shrink = map StrictSeq.forceToStrict . shrink . StrictSeq.fromStrict
-
 instance Arbitrary StakePoolRelay where
   arbitrary = genericArbitraryU
   shrink = genericShrink
 
 instance Arbitrary Port where
   arbitrary = fromIntegral @Word8 @Port <$> arbitrary
-
-instance Arbitrary IPv4 where
-  arbitrary = pure $ toIPv4 [192, 0, 2, 1]
-
-instance Arbitrary IPv6 where
-  arbitrary = pure $ toIPv6 [0x2001, 0xDB8, 0, 0, 0, 0, 0, 1]
 
 instance Arbitrary DnsName where
   arbitrary = pure . fromJust $ textToDns "foo.example.com"

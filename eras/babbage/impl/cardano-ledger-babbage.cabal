@@ -67,7 +67,6 @@ library
                 data-default,
                 deepseq,
                 microlens,
-                mtl,
                 nothunks,
                 plutus-ledger-api ^>= 1.1,
                 set-algebra,

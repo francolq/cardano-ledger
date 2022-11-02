@@ -8,7 +8,7 @@
 
 module Test.Cardano.Ledger.Shelley.Address.CompactAddr where
 
-import Cardano.Binary (serialize')
+import Cardano.Ledger.Binary (serialize', Version)
 import qualified Cardano.Crypto.Hash.Class as Hash
 import Cardano.Ledger.Address
   ( Addr (..),
@@ -118,9 +118,9 @@ propDecompactErrors addr = do
     $ isLeft
     $ CA.decodeAddrEither @c badAddr
 
-propDeserializeRewardAcntErrors :: forall c. CC.Crypto c => RewardAcnt c -> Gen Property
-propDeserializeRewardAcntErrors acnt = do
-  let bs = serialize' acnt
+propDeserializeRewardAcntErrors :: forall c. CC.Crypto c => Version -> RewardAcnt c -> Gen Property
+propDeserializeRewardAcntErrors v acnt = do
+  let bs = serialize' v acnt
       flipHeaderBit b =
         case BS.uncons bs of
           Just (h, bsTail) -> BS.cons (complementBit h b) bsTail

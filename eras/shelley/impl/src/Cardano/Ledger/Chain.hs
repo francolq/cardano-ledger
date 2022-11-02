@@ -79,4 +79,4 @@ chainChecks maxpv ccd bhv = do
     throwError $
       BlockSizeTooLargeCHAIN (bhviewBSize bhv) (ccMaxBBSize ccd)
   where
-    (ProtVer m _) = ccProtocolVersion ccd
+    ProtVer m _ = ccProtocolVersion ccd

@@ -4,9 +4,10 @@
 {-# LANGUAGE TypeApplications #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
 
-module Test.Cardano.Ledger.Binary.Arbitrary () where
+module Test.Cardano.Ledger.Binary.Arbitrary (genVersion) where
 
 import Cardano.Crypto.DSIGN.Class
+import Cardano.Ledger.Binary.Version
 import Cardano.Slotting.Block (BlockNo (..))
 import Cardano.Slotting.Slot (EpochNo (..), EpochSize (..), SlotNo (..), WithOrigin (..))
 import Cardano.Slotting.Time (SystemStart (..))
@@ -23,6 +24,7 @@ import qualified Data.Sequence.Strict as SSeq
 import qualified Data.VMap as VMap
 import qualified Data.Vector.Primitive as VP
 import Data.Word
+import GHC.Stack
 import Test.Crypto.Hash ()
 import Test.Crypto.KES ()
 import Test.Crypto.VRF ()
@@ -98,3 +100,16 @@ deriving instance Arbitrary EpochSize
 deriving instance Arbitrary SystemStart
 
 deriving instance Arbitrary BlockNo
+
+instance Arbitrary Version where
+  arbitrary = genVersion minBound maxBound
+
+genVersion :: HasCallStack => Version -> Version -> Gen Version
+genVersion minVersion maxVersion =
+  genVersion64 (getVersion64 minVersion) (getVersion64 maxVersion)
+  where
+    genVersion64 minVersion64 maxVersion64 = do
+      v64 <- choose (minVersion64, maxVersion64)
+      case mkVersion64 v64 of
+        Nothing -> error $ "Impossible: Invalid version generated: " ++ show v64
+        Just v -> pure v

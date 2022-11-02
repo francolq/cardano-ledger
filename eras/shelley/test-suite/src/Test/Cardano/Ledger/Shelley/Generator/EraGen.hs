@@ -25,6 +25,7 @@ module Test.Cardano.Ledger.Shelley.Generator.EraGen
     Sets (..),
     someKeyPairs,
     allScripts,
+    mkDummyHash,
     randomByHash,
   )
 where
@@ -33,7 +34,7 @@ import qualified Cardano.Crypto.Hash as Hash
 import Cardano.Ledger.Address (toAddr)
 import Cardano.Ledger.AuxiliaryData (AuxiliaryDataHash)
 import Cardano.Ledger.BaseTypes (Network (..), ProtVer, ShelleyBase, StrictMaybe, UnitInterval)
-import Cardano.Ledger.Binary (ToCBOR (..), hashWithEncoder, shelleyProtVer, serializeEncoding')
+import Cardano.Ledger.Binary (ToCBOR (..), hashWithEncoder, serializeEncoding', shelleyProtVer)
 import Cardano.Ledger.Coin (Coin (..))
 import Cardano.Ledger.Core
 import qualified Cardano.Ledger.Crypto as CC (Crypto, HASH)
@@ -315,9 +316,9 @@ genesisId ::
   Hash.HashAlgorithm (CC.HASH c) =>
   TxId c
 genesisId = TxId (unsafeMakeSafeHash (mkDummyHash 0))
-  where
-    mkDummyHash :: forall h a. Hash.HashAlgorithm h => Int -> Hash.Hash h a
-    mkDummyHash = coerce . hashWithEncoder @h shelleyProtVer toCBOR
+
+mkDummyHash :: forall h a. Hash.HashAlgorithm h => Int -> Hash.Hash h a
+mkDummyHash = coerce . hashWithEncoder @h shelleyProtVer toCBOR
 
 -- ==========================================================
 

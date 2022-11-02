@@ -104,7 +104,6 @@ library
     cardano-ledger-byron,
     cardano-ledger-core,
     cardano-slotting,
-    cborg,
     vector-map,
     containers,
     data-default-class,

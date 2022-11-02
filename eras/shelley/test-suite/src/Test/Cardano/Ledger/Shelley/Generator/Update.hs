@@ -33,6 +33,7 @@ import Cardano.Ledger.BaseTypes
     mkNonceFromNumber,
     mkVersion,
     mkVersion64,
+    succVersion,
   )
 import Cardano.Ledger.Coin (Coin (..))
 import Cardano.Ledger.Core
@@ -72,6 +73,7 @@ import Data.Word (Word64)
 import GHC.Records
 import GHC.Stack (HasCallStack)
 import Numeric.Natural (Natural)
+import Test.Cardano.Ledger.Binary.Arbitrary (genVersion)
 import Test.Cardano.Ledger.Shelley.Generator.Constants (Constants (..))
 import Test.Cardano.Ledger.Shelley.Generator.Core
   ( AllIssuerKeys (cold),
@@ -198,16 +200,6 @@ genDecentralisationParam = unsafeBoundRational <$> QC.elements [0.1, 0.2 .. 1]
 genProtocolVersion :: HasCallStack => Version -> Gen ProtVer
 genProtocolVersion minMajPV =
   ProtVer <$> genVersion minMajPV maxBound <*> genNatural 1 50
-
-genVersion :: HasCallStack => Version -> Version -> Gen Version
-genVersion minVersion maxVersion =
-  genVersion64 (getVersion64 minVersion) (getVersion64 maxVersion)
-  where
-    genVersion64 minVersion64 maxVersion64 = do
-      v64 <- choose (minVersion64, maxVersion64)
-      case mkVersion64 v64 of
-        Nothing -> error $ "Impossible: Invalid version generated: " ++ show v64
-        Just v -> pure v
 
 genMinUTxOValue :: HasCallStack => Gen Coin
 genMinUTxOValue = Coin <$> genInteger 1 20

@@ -14,7 +14,8 @@
 {-# LANGUAGE ViewPatterns #-}
 
 module Cardano.Ledger.BaseTypes
-  ( ProtVer (..),
+  ( module Slotting,
+    ProtVer (..),
     module Cardano.Ledger.Binary.Version,
     FixedPoint,
     (==>),
@@ -88,8 +89,11 @@ import Cardano.Ledger.Binary
 import Cardano.Ledger.Binary.Version
 import Cardano.Ledger.Keys (KeyHash, KeyRole (..))
 import Cardano.Ledger.NonIntegral (ln')
+import Cardano.Slotting.Block as Slotting (BlockNo (..))
 import Cardano.Slotting.EpochInfo (EpochInfo, hoistEpochInfo)
+import Cardano.Slotting.Slot as Slotting (EpochNo (..), EpochSize (..), SlotNo (..), WithOrigin (..))
 import Cardano.Slotting.Time (SystemStart)
+import Cardano.Slotting.Time as Slotting (SystemStart (..))
 import Control.DeepSeq (NFData)
 import Control.Exception (throw)
 import Control.Monad (when, (<=<))

@@ -30,7 +30,6 @@ import Cardano.Ledger.Shelley.Genesis
 import Cardano.Ledger.Shelley.PParams
 import Cardano.Ledger.Shelley.Scripts
 import Cardano.Ledger.Shelley.TxBody
-import Cardano.Slotting.Slot (EpochNo (..), EpochSize (..))
 import Data.Fixed
 import Data.IP (IPv4, IPv6, fromHostAddress, fromHostAddress6)
 import qualified Data.ListMap as LM
