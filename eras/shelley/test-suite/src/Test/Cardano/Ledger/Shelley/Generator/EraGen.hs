@@ -29,11 +29,11 @@ module Test.Cardano.Ledger.Shelley.Generator.EraGen
   )
 where
 
-import Cardano.Binary (ToCBOR (toCBOR), serializeEncoding')
 import qualified Cardano.Crypto.Hash as Hash
 import Cardano.Ledger.Address (toAddr)
 import Cardano.Ledger.AuxiliaryData (AuxiliaryDataHash)
 import Cardano.Ledger.BaseTypes (Network (..), ProtVer, ShelleyBase, StrictMaybe, UnitInterval)
+import Cardano.Ledger.Binary (ToCBOR (..), hashWithEncoder, shelleyProtVer, serializeEncoding')
 import Cardano.Ledger.Coin (Coin (..))
 import Cardano.Ledger.Core
 import qualified Cardano.Ledger.Crypto as CC (Crypto, HASH)
@@ -317,7 +317,7 @@ genesisId ::
 genesisId = TxId (unsafeMakeSafeHash (mkDummyHash 0))
   where
     mkDummyHash :: forall h a. Hash.HashAlgorithm h => Int -> Hash.Hash h a
-    mkDummyHash = coerce . Hash.hashWithSerialiser @h toCBOR
+    mkDummyHash = coerce . hashWithEncoder @h shelleyProtVer toCBOR
 
 -- ==========================================================
 
@@ -369,7 +369,7 @@ allScripts c =
 randomByHash :: forall x. ToCBOR x => Int -> Int -> x -> Int
 randomByHash low high x = low + remainder
   where
-    n = hash (serializeEncoding' (toCBOR x))
+    n = hash (serializeEncoding' shelleyProtVer (toCBOR x))
     -- We don't really care about the hash, we only
     -- use it to pseudo-randomly pick a number bewteen low and high
     m = high - low + 1

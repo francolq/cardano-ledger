@@ -12,21 +12,25 @@ module Test.Cardano.Ledger.Shelley.Serialisation.GoldenUtils
   )
 where
 
-import Cardano.Binary
+import Cardano.Ledger.Binary
   ( Annotator,
     DecoderError,
+    Encoding,
     FromCBOR (..),
     ToCBOR (..),
-    decodeAnnotator,
+    ToCBORGroup (..),
+    Tokens (..),
+    Version,
+    decodeFullAnnotator,
     decodeFullDecoder,
+    decodeTerm,
+    fromPlainEncoding,
     serialize,
     serialize',
     serializeEncoding,
     toCBOR,
   )
-import Cardano.Ledger.Serialization (ToCBORGroup (..))
-import Codec.CBOR.Encoding (Encoding (..), Tokens (..))
-import Codec.CBOR.Term (decodeTerm)
+import qualified Codec.CBOR.Encoding as CBOR (Encoding (..))
 import Control.Exception (throwIO)
 import Control.Monad (unless)
 import qualified Data.ByteString.Lazy as BSL (ByteString)
@@ -37,24 +41,26 @@ import Test.Tasty.HUnit (Assertion, assertFailure, testCase, (@?=))
 
 roundTrip ::
   (HasCallStack, Show a, Eq a) =>
+  Version ->
   (a -> Encoding) ->
   (BSL.ByteString -> Either DecoderError a) ->
   a ->
   Assertion
-roundTrip encode decode x =
-  case (decode . serializeEncoding . encode) x of
+roundTrip v encode decode x =
+  case (decode . serializeEncoding v . encode) x of
     Left e -> assertFailure $ "could not decode serialization of " ++ show x ++ ", " ++ show e
     Right y -> y @?= x
 
 checkEncoding ::
   (HasCallStack, Show a, Eq a) =>
+  Version ->
   (a -> Encoding) ->
   (BSL.ByteString -> Either DecoderError a) ->
   String ->
   a ->
   ToTokens ->
   TestTree
-checkEncoding encode decode name x t =
+checkEncoding v encode decode name x t =
   testCase testName $ do
     unless (expectedBinary == actualBinary) $ do
       expectedTerms <- getTerms "expected" expectedBinary
@@ -67,34 +73,36 @@ checkEncoding encode decode name x t =
             "actual = ",
             show actualTerms
           ]
-    roundTrip encode decode x
+    roundTrip v encode decode x
   where
-    getTerms lbl = either throwIO pure . decodeFullDecoder lbl decodeTerm
-    expectedBinary = serialize t
-    actualBinary = serializeEncoding $ encode x
+    getTerms lbl = either throwIO pure . decodeFullDecoder v lbl decodeTerm
+    expectedBinary = serialize v t
+    actualBinary = serializeEncoding v $ encode x
     testName = "golden_serialize_" <> name
 
 checkEncodingCBOR ::
   (HasCallStack, FromCBOR a, ToCBOR a, Show a, Eq a) =>
+  Version ->
   String ->
   a ->
   ToTokens ->
   TestTree
-checkEncodingCBOR name x t =
-  let d = decodeFullDecoder (fromString name) fromCBOR
-   in checkEncoding toCBOR d name x t
+checkEncodingCBOR v name x t =
+  let d = decodeFullDecoder v (fromString name) fromCBOR
+   in checkEncoding v toCBOR d name x t
 
 checkEncodingCBORAnnotated ::
   (HasCallStack, FromCBOR (Annotator a), ToCBOR a, Show a, Eq a) =>
+  Version ->
   String ->
   a ->
   ToTokens ->
   TestTree
-checkEncodingCBORAnnotated name x t =
-  let d = decodeAnnotator (fromString name) fromCBOR
-   in checkEncoding toCBOR d name x annTokens
+checkEncodingCBORAnnotated v name x t =
+  let d = decodeFullAnnotator v (fromString name) fromCBOR
+   in checkEncoding v toCBOR d name x annTokens
   where
-    annTokens = T $ TkEncoded $ serialize' t
+    annTokens = T $ TkEncoded $ serialize' v t
 
 data ToTokens where
   T :: (Tokens -> Tokens) -> ToTokens
@@ -103,7 +111,7 @@ data ToTokens where
   Plus :: ToTokens -> ToTokens -> ToTokens
 
 instance ToCBOR ToTokens where
-  toCBOR (T xs) = Encoding xs
+  toCBOR (T xs) = fromPlainEncoding (CBOR.Encoding xs)
   toCBOR (S s) = toCBOR s
   toCBOR (G g) = toCBORGroup g
   toCBOR (Plus a b) = toCBOR a <> toCBOR b

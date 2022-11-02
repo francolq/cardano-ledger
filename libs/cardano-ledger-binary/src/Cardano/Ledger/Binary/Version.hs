@@ -15,6 +15,7 @@ module Cardano.Ledger.Binary.Version
     MaxVersion,
     natVersion,
     natVersionProxy,
+    succVersion,
     mkVersion,
     mkVersion64,
     getVersion64,
@@ -91,6 +92,10 @@ mkVersion64 v
 -- | Extract `Word64` representation of the `Version`
 getVersion64 :: Version -> Word64
 getVersion64 (Version w64) = w64
+
+-- | Increment version by 1.
+succVersion :: Version -> Maybe Version
+succVersion (Version v64) = mkVersion64 (v64 + 1)
 
 allVersions :: [Version]
 allVersions = [minBound .. maxBound]
