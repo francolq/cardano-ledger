@@ -13,7 +13,6 @@
 -- | Golden tests that check CBOR token encoding.
 module Test.Cardano.Ledger.Shelley.Serialisation.Golden.Encoding (tests) where
 
-import Cardano.Crypto.DSIGN (encodeSignedDSIGN, encodeVerKeyDSIGN)
 import qualified Cardano.Crypto.Hash as Monomorphic
 import Cardano.Crypto.KES (SignedKES)
 import Cardano.Crypto.VRF (CertifiedVRF)
@@ -44,11 +43,16 @@ import Cardano.Ledger.Binary
     decodeFullDecoder,
     decodeMapTraverse,
     fromNotSharedCBOR,
+    hashWithEncoder,
     ipv4ToBytes,
     serialize',
     shelleyProtVer,
     toCBOR,
     toPlainEncoding,
+  )
+import Cardano.Ledger.Binary.Crypto
+  ( encodeSignedDSIGN,
+    encodeVerKeyDSIGN,
   )
 import Cardano.Ledger.Block (Block (..))
 import Cardano.Ledger.Coin (Coin (..), CompactForm (..), DeltaCoin (..))
@@ -77,7 +81,6 @@ import Cardano.Ledger.Keys
     encodeSignedKES,
     hashKey,
     hashVerKeyVRF,
-    hashWithSerialiser,
     sKey,
     signedDSIGN,
     signedKES,
@@ -225,7 +228,7 @@ checkEncodingCBORCBORGroup ::
   TestTree
 checkEncodingCBORCBORGroup name x t =
   let d = decodeFullDecoder shelleyProtVer (fromString name) fromCBORGroup
-   in checkEncoding toCBORGroup d name x t
+   in checkEncoding shelleyProtVer toCBORGroup d name x t
 
 getRawKeyHash :: KeyHash 'Payment h -> ByteString
 getRawKeyHash (KeyHash hsh) = Monomorphic.hashToBytes hsh
@@ -364,7 +367,7 @@ testHeaderHash ::
 testHeaderHash =
   HashHeader $
     coerce
-      (hashWithSerialiser toCBOR 0 :: Hash c Int)
+      (hashWithEncoder shelleyProtVer toCBOR 0 :: Hash c Int)
 
 testBHB ::
   forall era c.
@@ -407,7 +410,7 @@ testBHB =
               (sKey $ testKey1 @c)
               (OCertSignable (snd $ testKESKeys @c) 0 (KESPeriod 0))
           ),
-      bprotver = ProtVer 0 0
+      bprotver = ProtVer minBound 0
     }
 
 testBHBSigTokens ::
@@ -711,7 +714,7 @@ tests =
           tau = unsafeBoundRational $ 1 % 7
           d = unsafeBoundRational $ 1 % 9
           extraEntropy = NeutralNonce
-          protocolVersion = ProtVer 0 1
+          protocolVersion = ProtVer minBound 1
           minUTxOValue = Coin 121
           minPoolCost = Coin 987
        in checkEncodingCBOR
@@ -1055,7 +1058,7 @@ tests =
                   (sKey (testBlockIssuerKey @C_Crypto))
                   (OCertSignable (snd $ testKESKeys @C_Crypto) 0 (KESPeriod 0))
               )
-          protover = ProtVer 0 0
+          protover = ProtVer minBound 0
        in checkEncodingCBOR
             shelleyProtVer
             "block_header_body"
@@ -1095,7 +1098,6 @@ tests =
               (sKey $ testKey1 @C_Crypto)
               (OCertSignable (snd $ testKESKeys @C_Crypto) 0 (KESPeriod 0))
        in checkEncodingCBORCBORGroup
-            shelleyProtVer
             "operational_cert"
             ( OCert @C_Crypto
                 vkHot

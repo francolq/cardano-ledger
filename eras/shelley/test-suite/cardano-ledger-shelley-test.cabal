@@ -177,7 +177,7 @@ test-suite cardano-ledger-shelley-test
                 base16-bytestring >= 1,
                 binary,
                 bytestring,
-                cardano-ledger-binary,
+                cardano-ledger-binary:{cardano-ledger-binary, testlib},
                 cardano-crypto-class,
                 cardano-data,
                 cardano-ledger-byron,

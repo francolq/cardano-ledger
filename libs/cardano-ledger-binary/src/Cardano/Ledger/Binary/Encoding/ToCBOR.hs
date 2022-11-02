@@ -111,6 +111,7 @@ import Cardano.Slotting.Slot (EpochNo (..), EpochSize (..), SlotNo (..), WithOri
 import Cardano.Slotting.Time (SystemStart (..))
 import Codec.CBOR.ByteArray (ByteArray (..))
 import Codec.CBOR.ByteArray.Sliced (SlicedByteArray (SBA), fromByteArray)
+import qualified Codec.CBOR.Encoding as C (Encoding (..))
 import Codec.CBOR.Term (Term (..))
 import Codec.Serialise as Serialise (Serialise (encode))
 import Control.Category (Category ((.)))
@@ -588,17 +589,27 @@ instance ToCBOR Natural where
 instance ToCBOR Void where
   toCBOR = absurd
 
+instance ToCBOR IPv4 where
+  toCBOR = encodeIPv4
+
+instance ToCBOR IPv6 where
+  toCBOR = encodeIPv6
+
+--------------------------------------------------------------------------------
+-- CBOR
+--------------------------------------------------------------------------------
+
 instance ToCBOR Term where
   toCBOR = encodeTerm
 
 instance ToCBOR Encoding where
   toCBOR = id
 
-instance ToCBOR IPv4 where
-  toCBOR = encodeIPv4
+instance ToCBOR C.Encoding where
+  toCBOR = fromPlainEncoding
 
-instance ToCBOR IPv6 where
-  toCBOR = encodeIPv6
+instance ToCBOR (Tokens -> Tokens) where
+  toCBOR t = fromPlainEncoding (C.Encoding t)
 
 --------------------------------------------------------------------------------
 -- Tagged

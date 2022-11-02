@@ -19,9 +19,9 @@ import qualified Data.ByteString.Char8 as BS8
 import qualified Data.ByteString.Lazy as BSL
 import Data.TreeDiff
 
-{-------------------------------------------------------------------------------
-  Diffing Cbor
--------------------------------------------------------------------------------}
+--------------------------------------------------------------------------------
+--  Diffing and pretty showing CBOR
+--------------------------------------------------------------------------------
 
 diffExpr :: ToExpr a => a -> a -> String
 diffExpr x y = show (ansiWlEditExpr (ediff x y))
@@ -30,6 +30,10 @@ showExpr :: ToExpr a => a -> String
 showExpr = show . ansiWlExpr . toExpr
 
 newtype CBORBytes = CBORBytes BS.ByteString
+  deriving Eq
+
+instance Show CBORBytes where
+  show = showExpr
 
 instance ToExpr CBORBytes where
   toExpr (CBORBytes bytes) =

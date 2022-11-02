@@ -35,13 +35,12 @@ module Test.Cardano.Ledger.Shelley.Serialisation.Tripping.CBOR
   )
 where
 
-import Cardano.Binary
+import Cardano.Ledger.Binary
   ( Annotator (..),
     FromCBOR (..),
     FullByteString (..),
     ToCBOR (..),
     serializeEncoding,
-    toCBOR,
   )
 import Cardano.Ledger.Coin (Coin (..))
 import Cardano.Ledger.CompactAddress (fromCborAddr, fromCborRewardAcnt)
