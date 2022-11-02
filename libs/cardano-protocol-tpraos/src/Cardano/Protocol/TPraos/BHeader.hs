@@ -57,20 +57,25 @@ import Cardano.Ledger.Binary
   ( Annotator (..),
     Case (..),
     FromCBOR (fromCBOR),
+    FromCBORGroup (..),
     ToCBOR (..),
+    ToCBORGroup (..),
     TokenType (TypeNull),
     annotatorSlice,
     decodeNull,
+    decodeRecordNamed,
     encodeListLen,
     encodeNull,
     encodePreEncoded,
     encodedSigKESSizeExpr,
     encodedVerKeyVRFSizeExpr,
+    hashToCBOR,
+    listLenInt,
     peekTokenType,
+    runByteBuilder,
     serialize',
     serializeEncoding,
     szCases,
-    toPlainEncoding,
     withWordSize,
   )
 import qualified Cardano.Ledger.Crypto as CC
@@ -93,13 +98,6 @@ import Cardano.Ledger.Keys
     hashKey,
   )
 import Cardano.Ledger.NonIntegral (CompareResult (..), taylorExpCmp)
-import Cardano.Ledger.Binary
-  ( FromCBORGroup (..),
-    ToCBORGroup (..),
-    decodeRecordNamed,
-    listLenInt,
-    runByteBuilder,
-  )
 import Cardano.Ledger.Slot (BlockNo (..), SlotNo (..))
 import Cardano.Protocol.TPraos.OCert (OCert (..))
 import Cardano.Slotting.Slot (WithOrigin (..))
@@ -326,9 +324,9 @@ bhHash ::
   CC.Crypto c =>
   BHeader c ->
   HashHeader c
-bhHash bh = HashHeader . Hash.castHash . Hash.hashWithSerialiser bhEncoder $ bh
+bhHash bh = HashHeader . Hash.castHash . hashToCBOR version $ bh
   where
-    bhEncoder = toPlainEncoding (pvMajor (bprotver (bHeaderBody' bh))) . toCBOR
+    version = pvMajor (bprotver (bHeaderBody' bh))
 
 -- | HashHeader to Nonce
 -- What is going on here?

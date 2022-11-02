@@ -1213,6 +1213,9 @@ instance Crypto c => PrettyA (CompactAddr c) where
 ppVersion :: Version -> PDoc
 ppVersion = ppWord64 . getVersion64
 
+instance PrettyA Version where
+  prettyA = ppVersion
+
 ppProtVer :: ProtVer -> PDoc
 ppProtVer (ProtVer maj mi) = ppRecord "ProtVer" [("major", ppVersion maj), ("minor", ppNatural mi)]
 
@@ -1531,7 +1534,7 @@ ppGlobals
         ("securityParameter", pretty sec),
         ("maxKESEvo", pretty maxkes),
         ("quorum", pretty quor),
-        ("maxMajorPV", pretty maxmaj),
+        ("maxMajorPV", prettyA maxmaj),
         ("maxLovelaceSupply", pretty maxlove),
         ("activeSlotCoeff", ppActiveSlotCoeff active),
         ("networkId", ppNetwork net),

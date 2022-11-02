@@ -14,7 +14,7 @@ module Test.Cardano.Ledger.Shelley.Serialisation.CDDLUtils
   )
 where
 
-import Cardano.Binary
+import Cardano.Ledger.Binary
   ( Annotator,
     DecoderError,
     FromCBOR (..),

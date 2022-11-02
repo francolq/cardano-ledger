@@ -601,7 +601,7 @@ data Globals = Globals
     -- | Quorum for update system votes and MIR certificates
     quorum :: !Word64,
     -- | All blocks invalid after this protocol version
-    maxMajorPV :: !Natural,
+    maxMajorPV :: !Version,
     -- | Maximum number of lovelace in the system
     maxLovelaceSupply :: !Word64,
     -- | Active Slot Coefficient, named f in

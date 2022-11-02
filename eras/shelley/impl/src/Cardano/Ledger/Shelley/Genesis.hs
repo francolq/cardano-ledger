@@ -60,7 +60,6 @@ import Data.Time (NominalDiffTime, UTCTime (..))
 import Data.Unit.Strict (forceElemsToWHNF)
 import Data.Word (Word32, Word64)
 import GHC.Generics (Generic)
-import GHC.Natural (Natural)
 import NoThunks.Class (NoThunks (..))
 
 -- | Genesis Shelley staking configuration.
@@ -460,7 +459,7 @@ validateGenesis
 mkShelleyGlobals ::
   ShelleyGenesis era ->
   EpochInfo (Either Text) ->
-  Natural ->
+  Version ->
   Globals
 mkShelleyGlobals genesis epochInfoAc maxMajorPV =
   Globals
