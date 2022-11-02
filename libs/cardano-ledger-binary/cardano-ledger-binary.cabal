@@ -112,6 +112,7 @@ library testlib
                    , primitive
                    , QuickCheck
                    , quickcheck-instances
+                   , random >= 1.2
                    , text
                    , vector
                    , vector-map

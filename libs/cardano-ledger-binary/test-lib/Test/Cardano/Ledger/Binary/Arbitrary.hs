@@ -1,22 +1,24 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeFamilies #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
 
-module Test.Cardano.Ledger.Binary.Arbitrary (genVersion) where
+module Test.Cardano.Ledger.Binary.Arbitrary (QC (..), genVersion) where
 
-import Cardano.Crypto.DSIGN.Class
+import Cardano.Crypto.DSIGN.Class hiding (Signable)
+import Cardano.Crypto.Util
+import Cardano.Crypto.VRF.Class
 import Cardano.Ledger.Binary.Version
 import Cardano.Slotting.Block (BlockNo (..))
 import Cardano.Slotting.Slot (EpochNo (..), EpochSize (..), SlotNo (..), WithOrigin (..))
 import Cardano.Slotting.Time (SystemStart (..))
 import Codec.CBOR.ByteArray (ByteArray (..))
 import Codec.CBOR.ByteArray.Sliced (SlicedByteArray (..))
-import qualified Data.ByteString as BS
 import qualified Data.Foldable as F
 import Data.IP (IPv4, IPv6, toIPv4w, toIPv6w)
-import Data.Maybe (fromMaybe)
 import Data.Maybe.Strict
 import qualified Data.Primitive.ByteArray as Prim (byteArrayFromListN)
 import Data.Proxy (Proxy (..))
@@ -25,10 +27,12 @@ import qualified Data.VMap as VMap
 import qualified Data.Vector.Primitive as VP
 import Data.Word
 import GHC.Stack
+import System.Random.Stateful
 import Test.Crypto.Hash ()
 import Test.Crypto.KES ()
 import Test.Crypto.VRF ()
 import Test.QuickCheck
+import Test.QuickCheck.Gen
 import Test.QuickCheck.Instances ()
 
 deriving instance Arbitrary ByteArray
@@ -75,18 +79,27 @@ instance DSIGNAlgorithm v => Arbitrary (VerKeyDSIGN v) where
 instance DSIGNAlgorithm v => Arbitrary (SignKeyDSIGN v) where
   arbitrary = do
     let n = sizeSignKeyDSIGN (Proxy @v) :: Word
-    fromMaybe (error $ "Impossible: Invalid size " ++ show n)
-      . rawDeserialiseSignKeyDSIGN
-      . BS.pack
-      <$> vectorOf (fromIntegral n) arbitrary
+    bs <- uniformByteStringM (fromIntegral n) QC
+    maybe (error $ "Impossible: Invalid size " ++ show n) pure $ rawDeserialiseSignKeyDSIGN bs
 
 instance DSIGNAlgorithm v => Arbitrary (SigDSIGN v) where
   arbitrary = do
     let n = sizeSigDSIGN (Proxy @v) :: Word
-    fromMaybe (error $ "Impossible: Invalid size " ++ show n)
-      . rawDeserialiseSigDSIGN
-      . BS.pack
-      <$> vectorOf (fromIntegral n) arbitrary
+    bs <- uniformByteStringM (fromIntegral n) QC
+    maybe (error $ "Impossible: Invalid size " ++ show n) pure $ rawDeserialiseSigDSIGN bs
+
+instance VRFAlgorithm v => Arbitrary (OutputVRF v) where
+  arbitrary =
+    OutputVRF <$> uniformByteStringM (fromIntegral (sizeOutputVRF (Proxy :: Proxy v))) QC
+
+instance
+  (ContextVRF v ~ (), Signable v ~ SignableRepresentation, VRFAlgorithm v) =>
+  Arbitrary (CertifiedVRF v a)
+  where
+  arbitrary = CertifiedVRF <$> arbitrary <*> genCertVRF
+    where
+      genCertVRF :: Gen (CertVRF v)
+      genCertVRF = arbitrary
 
 deriving instance Arbitrary SlotNo
 
@@ -113,3 +126,14 @@ genVersion minVersion maxVersion =
       case mkVersion64 v64 of
         Nothing -> error $ "Impossible: Invalid version generated: " ++ show v64
         Just v -> pure v
+
+-- TODO: Move this somewhere where it can be used at a larger scale
+--
+-- This comes from an unmerged QuickCheck PR: https://github.com/nick8325/quickcheck/pull/333
+data QC = QC
+
+instance StatefulGen QC Gen where
+  uniformWord32 QC = MkGen (\r _n -> runStateGen_ r uniformWord32)
+  uniformWord64 QC = MkGen (\r _n -> runStateGen_ r uniformWord64)
+  uniformShortByteString k QC =
+    MkGen (\r _n -> runStateGen_ r (uniformShortByteString k))

@@ -1,3 +1,4 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
@@ -50,6 +51,12 @@ roundTripSpec ::
 roundTripSpec version trip =
   prop (show (typeRep $ Proxy @t)) $ roundTripExpectation version trip
 
+-- | Verify that round triping through the binary form holds.
+--
+-- In other words check that:
+--
+-- > deserialize version . serialize version === id
+-- > serialize version . deserialize version . serialize version === serialize version
 roundTripExpectation ::
   (Show t, Eq t, Typeable t) =>
   Version ->
@@ -70,14 +77,20 @@ data RoundTripFailure = RoundTripFailure
     rtfEncoding :: Encoding,
     -- | Serialized encoding using the version in this failure
     rtfEncodedBytes :: BSL.ByteString,
-    -- | Error received while decoding the produced bytes and dropping the value. It will
-    -- be always `Nothign`, unless the error produced did not match the `rtfDecoderError`,
-    -- in which case it will be `Just` the error.
+    -- | Re-serialized bytes, if there was a mismatch between the binary form and th
+    -- reserialization of the data type.
+    rtfReEncodedBytes :: Maybe (BSL.ByteString),
+    -- | Error received while decoding the produced bytes and dropping the value. Normally
+    -- it will be `Nothing`, unless the error produced did not match the
+    -- `rtfDecoderError`, in which case it will be `Just` the error.
     rtfDropperError :: Maybe DecoderError,
-    -- | Error received while decoding the produced bytes. It is a possible erroneous
-    -- state for a dropper to produce an error, while decoder going through
-    -- successfully. In such a case this field will be `Nothing`, however
-    -- `rtfDropperError` will be set to `Just`
+    -- | Error received while decoding the produced bytes. It is possible for a dropper to
+    -- produce an error, while decoder going through successfully, which constitues a test
+    -- failure. In such a case this field will be `Nothing`, however `rtfDropperError`
+    -- will be set to `Just`. Whenever both `rtfDropperError` and `rtfDecoderError` are
+    -- `Nothing` it means that the decoding went though just fine, but there was a
+    -- mismatch in the binary format, i.e. reserialization produced a mismatched result,
+    -- in which case `rtfReEncodedBytes` will be set to `Just`
     rtfDecoderError :: Maybe DecoderError
   }
 
@@ -117,8 +130,13 @@ cborTrip = Trip toCBOR fromCBOR (dropCBOR (Proxy @b))
 mkTrip :: forall a b. (a -> Encoding) -> (forall s. Decoder s b) -> Trip a b
 mkTrip encoder decoder = Trip encoder decoder (() <$ decoder)
 
-roundTrip :: Typeable t => Version -> Trip t t -> t -> Either RoundTripFailure t
-roundTrip = embedTrip
+roundTrip :: forall t. Typeable t => Version -> Trip t t -> t -> Either RoundTripFailure t
+roundTrip version trip val = do
+  (val', encoding, encodedBytes) <- embedTripLabelExtra (typeLabel @t) version trip val
+  let reserialized = serializeEncoding version (tripEncoder trip val')
+  if reserialized /= encodedBytes
+    then Left $ RoundTripFailure version encoding encodedBytes (Just reserialized) Nothing Nothing
+    else Right val'
 
 roundTripTwiddled :: forall t. Twiddle t => Version -> t -> Gen (Either RoundTripFailure t)
 roundTripTwiddled version x = do
@@ -141,7 +159,7 @@ decodeAnn ::
   Encoding ->
   Either RoundTripFailure t
 decodeAnn version encoding =
-  first (RoundTripFailure version encoding encodedBytes Nothing . Just) $
+  first (RoundTripFailure version encoding encodedBytes Nothing Nothing . Just) $
     decodeFullAnnotator version (label (Proxy @(Annotator t))) fromCBOR encodedBytes
   where
     encodedBytes = serializeEncoding version encoding
@@ -153,20 +171,25 @@ embedTripLabel ::
   Trip a b ->
   a ->
   Either RoundTripFailure b
-embedTripLabel lbl version (Trip encoder decoder dropper) s =
+embedTripLabel lbl version trip s =
+  (\(val, _, _) -> val) <$> embedTripLabelExtra lbl version trip s
+
+embedTripLabelExtra ::
+  forall a b.
+  Text.Text ->
+  Version ->
+  Trip a b ->
+  a ->
+  Either RoundTripFailure (b, Encoding, BSL.ByteString)
+embedTripLabelExtra lbl version (Trip encoder decoder dropper) s =
   case decodeFullDecoder version lbl decoder encodedBytes of
     Right val
-      | Nothing <- dropperError -> pure val
+      | Nothing <- dropperError -> Right (val, encoding, encodedBytes)
       | Just err <- dropperError ->
-          Left $ RoundTripFailure version encoding encodedBytes (Just err) Nothing
+          Left $ RoundTripFailure version encoding encodedBytes Nothing (Just err) Nothing
     Left err ->
-      Left $
-        RoundTripFailure
-          version
-          encoding
-          encodedBytes
-          (dropperError >>= \dropErr -> guard (dropErr /= err) >> dropperError)
-          (Just err)
+      let mErr = dropperError >>= \dropErr -> guard (dropErr /= err) >> dropperError
+       in Left $ RoundTripFailure version encoding encodedBytes Nothing mErr (Just err)
   where
     encoding = encoder s
     encodedBytes = serializeEncoding version encoding
@@ -182,3 +205,6 @@ embedTrip = embedTripLabel (Text.pack (show (typeRep $ Proxy @b)))
 embedTripAnn ::
   forall a b. (ToCBOR a, FromCBOR (Annotator b)) => Version -> a -> Either RoundTripFailure b
 embedTripAnn version = decodeAnn version . toCBOR
+
+typeLabel :: forall t. Typeable t => Text.Text
+typeLabel = Text.pack (show (typeRep $ Proxy @t))
