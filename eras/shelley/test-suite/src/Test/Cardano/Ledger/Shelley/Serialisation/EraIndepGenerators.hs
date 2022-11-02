@@ -115,7 +115,8 @@ import qualified Data.Time.Calendar.OrdinalDate as Time
 import Data.Typeable (Typeable)
 import Data.Word (Word16, Word64, Word8)
 import Generic.Random (genericArbitraryU)
-import Test.Cardano.Ledger.Binary.Arbitrary ()
+import System.Random.Stateful (uniformByteStringM)
+import Test.Cardano.Ledger.Binary.Arbitrary (QC (..))
 import Test.Cardano.Ledger.Shelley.ConcreteCryptoTypes (Mock)
 import Test.Cardano.Ledger.Shelley.Generator.Constants (defaultConstants)
 import Test.Cardano.Ledger.Shelley.Generator.Core
@@ -142,9 +143,7 @@ import Test.QuickCheck
     recursivelyShrink,
     resize,
     shrink,
-    vectorOf,
   )
-import Test.QuickCheck.Gen (chooseAny)
 
 -- =======================================================
 
@@ -652,9 +651,7 @@ instance Era era => Arbitrary (MultiSig era) where
 -- |
 -- Generate a byte string of a given size.
 genByteString :: Int -> Gen BS.ByteString
-genByteString size = do
-  ws <- vectorOf size (chooseAny @Char)
-  return $ BS.pack ws
+genByteString size = uniformByteStringM size QC
 
 genUTCTime :: Gen Time.UTCTime
 genUTCTime = do

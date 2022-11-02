@@ -112,6 +112,7 @@ library
                 nothunks,
                 plutus-ledger-api,
                 process-extras,
+                random >= 1.2,
                 serialise,
                 set-algebra,
                 small-steps,
