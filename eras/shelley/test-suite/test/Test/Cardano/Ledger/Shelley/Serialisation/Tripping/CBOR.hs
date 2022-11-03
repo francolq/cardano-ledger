@@ -40,8 +40,10 @@ import Cardano.Ledger.Binary
     FromCBOR (..),
     FullByteString (..),
     ToCBOR (..),
+    Version,
     fromNotSharedCBOR,
     serializeEncoding,
+    shelleyProtVer,
   )
 import Cardano.Ledger.Coin (Coin (..))
 import Cardano.Ledger.CompactAddress (fromCborAddr, fromCborRewardAcnt)
@@ -65,6 +67,7 @@ import Codec.CBOR.Read (deserialiseFromBytes)
 import Codec.CBOR.Write (toLazyByteString)
 import qualified Data.ByteString.Lazy as Lazy
 import Data.Maybe (fromJust)
+import Test.Cardano.Ledger.Binary.RoundTrip
 import qualified Test.Cardano.Ledger.Shelley.ConcreteCryptoTypes as Mock
 import Test.Cardano.Ledger.Shelley.Generator.ShelleyEraGen ()
 import Test.Cardano.Ledger.Shelley.Serialisation.EraIndepGenerators ()
@@ -135,15 +138,15 @@ roundtrip2' enc dec a = case deserialiseFromBytes dec bs of
   Serialization Properties
 -------------------------------------------------------------------------------}
 
-prop_roundtrip_Addr :: Ledger.Addr Mock.C_Crypto -> Property
-prop_roundtrip_Addr addr =
-  roundtrip toCBOR fromCBOR addr
-    .&&. roundtrip toCBOR fromCborAddr addr
+prop_roundtrip_Addr :: Version -> Ledger.Addr Mock.C_Crypto -> Property
+prop_roundtrip_Addr v addr =
+  roundTripExpectation v cborTrip addr
+    .&&. roundTripExpectation v (mkTrip toCBOR fromCborAddr) addr
 
-prop_roundtrip_RewardAcnt :: Ledger.RewardAcnt Mock.C_Crypto -> Property
-prop_roundtrip_RewardAcnt acnt =
-  roundtrip toCBOR fromCBOR acnt
-    .&&. roundtrip toCBOR fromCborRewardAcnt acnt
+prop_roundtrip_RewardAcnt :: Version -> Ledger.RewardAcnt Mock.C_Crypto -> Property
+prop_roundtrip_RewardAcnt v acnt =
+  roundTripExpectation v cborTrip acnt
+    .&&. roundTripExpectation v (mkTrip toCBOR fromCborRewardAcnt) acnt
 
 prop_roundtrip_Block :: Ledger.Block (TP.BHeader Mock.C_Crypto) Mock.C -> Property
 prop_roundtrip_Block = roundtrip' toCBOR ((. Full) . runAnnotator <$> fromCBOR)
