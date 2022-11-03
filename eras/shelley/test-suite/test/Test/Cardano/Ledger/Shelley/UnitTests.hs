@@ -11,7 +11,7 @@
 
 module Test.Cardano.Ledger.Shelley.UnitTests (unitTests) where
 
-import Cardano.Binary (serialize')
+import Cardano.Ledger.Binary (serialize')
 import Cardano.Crypto.DSIGN.Class (SignKeyDSIGN, VerKeyDSIGN)
 import Cardano.Crypto.Hash.Class (HashAlgorithm)
 import qualified Cardano.Crypto.VRF as VRF
@@ -91,7 +91,6 @@ import Cardano.Ledger.Shelley.TxWits
     addrWits,
   )
 import Cardano.Ledger.Shelley.UTxO (makeWitnessVKey, makeWitnessesVKey)
-import Cardano.Ledger.Slot
 import Cardano.Ledger.Val ((<+>), (<->))
 import Cardano.Protocol.TPraos.BHeader (checkLeaderValue)
 import Control.State.Transition.Extended (PredicateFailure, TRC (..))
@@ -731,7 +730,7 @@ testProducedOverMaxWord64 =
         runShelleyBase $
           applySTSTest @(ShelleyLEDGER C) (TRC (ledgerEnv, ledgerState, tx))
    in -- We test that the serialization of the predicate failure does not return bottom
-      serialize' st @?= serialize' st
+      serialize' shelleyProtVer st @?= serialize' shelleyProtVer st
 
 testsInvalidLedger :: TestTree
 testsInvalidLedger =

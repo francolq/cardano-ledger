@@ -12,6 +12,7 @@
 module Test.Cardano.Ledger.Binary.RoundTrip
   ( roundTripSpec,
     roundTripExpectation,
+    roundTripAnnExpectation,
     RoundTripFailure (..),
     Trip (..),
     mkTrip,
@@ -65,6 +66,17 @@ roundTripExpectation ::
   Expectation
 roundTripExpectation version trip t =
   case roundTrip version trip t of
+    Left err -> expectationFailure $ "Failed to deserialize encoded: " ++ show err
+    Right tDecoded -> tDecoded `shouldBe` t
+
+
+roundTripAnnExpectation ::
+  (Show t, Eq t, ToCBOR t, FromCBOR (Annotator t)) =>
+  Version ->
+  t ->
+  Expectation
+roundTripAnnExpectation version t =
+  case roundTripAnn version t of
     Left err -> expectationFailure $ "Failed to deserialize encoded: " ++ show err
     Right tDecoded -> tDecoded `shouldBe` t
 
