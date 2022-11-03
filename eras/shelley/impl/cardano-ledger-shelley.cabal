@@ -67,10 +67,13 @@ library
     Cardano.Ledger.Shelley.TxBody
     Cardano.Ledger.Shelley.TxOut
     Cardano.Ledger.Shelley.UTxO
-  other-modules:
+
     Cardano.Ledger.Shelley.Era
     Cardano.Ledger.Shelley.LedgerState.Types
     Cardano.Ledger.Shelley.LedgerState.DPState
+   
+  other-modules:
+    
     Cardano.Ledger.Shelley.LedgerState.IncrementalStake
     Cardano.Ledger.Shelley.LedgerState.NewEpochState
     Cardano.Ledger.Shelley.LedgerState.PulsingReward

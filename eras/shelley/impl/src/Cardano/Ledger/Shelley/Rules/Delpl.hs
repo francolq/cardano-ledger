@@ -49,6 +49,7 @@ import Cardano.Ledger.Shelley.TxBody
     Ptr,
   )
 import Cardano.Ledger.Slot (SlotNo)
+import Cardano.Ledger.Coin(Coin)
 import Control.State.Transition
 import Data.Typeable (Typeable)
 import Data.Word (Word8)
@@ -207,6 +208,7 @@ instance
 instance
   ( Era era,
     HasField "_protocolVersion" (PParams era) ProtVer,
+    HasField "_keyDeposit" (PParams era) Coin,
     PredicateFailure (EraRule "DELEG" era) ~ ShelleyDelegPredFailure era
   ) =>
   Embed (ShelleyDELEG era) (ShelleyDELPL era)

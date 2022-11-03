@@ -4,6 +4,7 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 module Cardano.Ledger.Shelley.LedgerState.DPState
@@ -15,6 +16,10 @@ module Cardano.Ledger.Shelley.LedgerState.DPState
     rewards,
     delegations,
     ptrsMap,
+    payKeyDeposit,
+    payPoolDeposit,
+    refundKeyDeposit,
+    refundPoolDeposit,
   )
 where
 
@@ -57,6 +62,10 @@ import qualified Data.UMap as UM
 import GHC.Generics (Generic)
 import Lens.Micro (_1, _2)
 import NoThunks.Class (NoThunks (..))
+import Cardano.Ledger.Core(PParams,EraCrypto)
+import GHC.Records (HasField (..))
+
+-- ======================================
 
 data FutureGenDeleg c = FutureGenDeleg
   { fGenDelegSlot :: !SlotNo,
@@ -109,7 +118,9 @@ data DState c = DState
     -- | Genesis key delegations
     dsGenDelegs :: !(GenDelegs c),
     -- | Instantaneous Rewards
-    dsIRewards :: !(InstantaneousRewards c)
+    dsIRewards :: !(InstantaneousRewards c),
+    -- | The Deposit map for staking credentials
+    dsDeposits :: !(Map (Credential 'Staking c) Coin)
   }
   deriving (Show, Eq, Generic)
 
@@ -118,24 +129,26 @@ instance NoThunks (InstantaneousRewards c) => NoThunks (DState c)
 instance NFData (InstantaneousRewards c) => NFData (DState c)
 
 instance (CC.Crypto c, ToCBOR (InstantaneousRewards c)) => ToCBOR (DState c) where
-  toCBOR (DState unified fgs gs ir) =
-    encodeListLen 4
+  toCBOR (DState unified fgs gs ir ds) =
+    encodeListLen 5
       <> toCBOR unified
       <> toCBOR fgs
       <> toCBOR gs
       <> toCBOR ir
+      <> toCBOR ds
 
 instance (CC.Crypto c, FromSharedCBOR (InstantaneousRewards c)) => FromSharedCBOR (DState c) where
   type
     Share (DState c) =
       (Interns (Credential 'Staking c), Interns (KeyHash 'StakePool c))
   fromSharedPlusCBOR =
-    decodeRecordNamedT "DState" (const 4) $ do
+    decodeRecordNamedT "DState" (const 5) $ do
       unified <- fromSharedPlusCBOR
       fgs <- lift fromCBOR
       gs <- lift fromCBOR
       ir <- fromSharedPlusLensCBOR _1
-      pure $ DState unified fgs gs ir
+      ds <- fromSharedPlusLensCBOR (_1 . toMemptyLens _1 id)
+      pure $ DState unified fgs gs ir ds
 
 -- | The state used by the POOL rule, which tracks stake pool information.
 data PState c = PState
@@ -148,7 +161,9 @@ data PState c = PState
     -- of the Shelley Ledger Specification for a sequence diagram.
     psFutureStakePoolParams :: !(Map (KeyHash 'StakePool c) (PoolParams c)),
     -- | A map of retiring stake pools to the epoch when they retire.
-    psRetiring :: !(Map (KeyHash 'StakePool c) EpochNo)
+    psRetiring :: !(Map (KeyHash 'StakePool c) EpochNo),
+    -- | A map of the deposits for each pool
+    psDeposits :: !(Map (KeyHash 'StakePool c) Coin)
   }
   deriving (Show, Eq, Generic)
 
@@ -157,18 +172,19 @@ instance NoThunks (PState c)
 instance NFData (PState c)
 
 instance CC.Crypto c => ToCBOR (PState c) where
-  toCBOR (PState a b c) =
-    encodeListLen 3 <> toCBOR a <> toCBOR b <> toCBOR c
+  toCBOR (PState a b c d) =
+    encodeListLen 4 <> toCBOR a <> toCBOR b <> toCBOR c <> toCBOR d
 
 instance CC.Crypto c => FromSharedCBOR (PState c) where
   type
     Share (PState c) =
       Interns (KeyHash 'StakePool c)
-  fromSharedPlusCBOR = decodeRecordNamedT "PState" (const 3) $ do
+  fromSharedPlusCBOR = decodeRecordNamedT "PState" (const 4) $ do
     psStakePoolParams <- fromSharedPlusLensCBOR (toMemptyLens _1 id)
     psFutureStakePoolParams <- fromSharedPlusLensCBOR (toMemptyLens _1 id)
     psRetiring <- fromSharedPlusLensCBOR (toMemptyLens _1 id)
-    pure PState {psStakePoolParams, psFutureStakePoolParams, psRetiring}
+    psDeposits <- fromSharedPlusLensCBOR (toMemptyLens _1 id)
+    pure PState {psStakePoolParams, psFutureStakePoolParams, psRetiring, psDeposits}
 
 instance (CC.Crypto c, FromSharedCBOR (PState c)) => FromCBOR (PState c) where
   fromCBOR = fromNotSharedCBOR
@@ -232,19 +248,69 @@ instance Default (DState c) where
       Map.empty
       (GenDelegs Map.empty)
       def
+      Map.empty
 
 instance Default (PState c) where
   def =
-    PState Map.empty Map.empty Map.empty
+    PState Map.empty Map.empty Map.empty Map.empty
 
 rewards :: DState c -> ViewMap c (Credential 'Staking c) Coin
-rewards (DState unified _ _ _) = Rewards unified
+rewards (DState unified _ _ _ _) = Rewards unified
 
 delegations ::
   DState c ->
   ViewMap c (Credential 'Staking c) (KeyHash 'StakePool c)
-delegations (DState unified _ _ _) = Delegations unified
+delegations (DState unified _ _ _ _) = Delegations unified
 
 -- | get the actual ptrs map, we don't need a view
 ptrsMap :: DState c -> Map Ptr (Credential 'Staking c)
-ptrsMap (DState (UnifiedMap _ ptrmap) _ _ _) = ptrmap
+ptrsMap (DState (UnifiedMap _ ptrmap) _ _ _ _) = ptrmap
+
+
+-- ==========================================================
+-- Functions that handle Deposits for stake credetials and key hashes.
+
+
+-- | One only pays a deposit on the initial key registration. If the key has been
+--   de-registered it should have been removed from the map. If it hasn't been
+--   de-registered, then it has no effect on the Deposits. In places where this function
+--   is called, there should be an explicit check that the credential is not in the map.
+payKeyDeposit :: HasField "_keyDeposit" (PParams era) Coin =>
+   Credential 'Staking (EraCrypto era) ->
+   PParams era ->
+   DState (EraCrypto era) ->
+   DState (EraCrypto era)
+payKeyDeposit cred pp dstate = dstate {dsDeposits = newStake}
+  where stake = dsDeposits dstate
+        newStake = case Map.lookup cred stake of
+                      Nothing -> Map.insert cred (getField @"_keyDeposit" pp) stake
+                      Just _ -> stake
+
+refundKeyDeposit :: Credential 'Staking c -> DState c -> (Coin, DState c)
+refundKeyDeposit cred dstate = (coin,dstate{dsDeposits = newStake})
+  where stake = dsDeposits dstate
+        (coin,newStake) = case Map.lookup cred stake of
+           Just c -> (c,Map.delete cred stake)
+           Nothing -> (mempty,stake)
+
+
+-- | One only pays a deposit on the initial pool registration. So return the
+--   the Deposits unchanged if the keyhash already exists. There are legal
+--   situations where a pool may be registered multiple times.
+payPoolDeposit :: HasField "_poolDeposit" (PParams era) Coin =>
+   KeyHash 'StakePool (EraCrypto era) ->
+   PParams era ->
+   PState (EraCrypto era) ->
+   PState (EraCrypto era)
+payPoolDeposit keyhash pp pstate = pstate{ psDeposits = newpool }
+  where pool = psDeposits pstate
+        newpool = case Map.lookup keyhash pool of
+                      Nothing -> Map.insert keyhash (getField @"_poolDeposit" pp) pool
+                      Just _ -> pool
+
+refundPoolDeposit ::  KeyHash 'StakePool c -> PState c -> (Coin, PState c)
+refundPoolDeposit keyhash pstate = (coin,pstate{ psDeposits = newpool })
+  where pool = psDeposits pstate
+        (coin,newpool) = case Map.lookup keyhash pool of
+             Just c -> (c,Map.delete keyhash pool)
+             Nothing -> (mempty,pool)

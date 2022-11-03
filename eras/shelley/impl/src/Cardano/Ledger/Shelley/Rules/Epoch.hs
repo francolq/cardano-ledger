@@ -168,7 +168,7 @@ epochTransition = do
   ss' <-
     trans @(EraRule "SNAP" era) $ TRC (ls, ss, ())
 
-  let PState pParams fPParams _ = pstate
+  let PState pParams fPParams _ _ = pstate
       ppp = eval (pParams ⨃ fPParams)
       pstate' =
         pstate
