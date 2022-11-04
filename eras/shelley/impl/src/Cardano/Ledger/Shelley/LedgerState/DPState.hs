@@ -306,7 +306,8 @@ payPoolDeposit keyhash pp pstate = pstate{ psDeposits = newpool }
   where pool = psDeposits pstate
         newpool = case Map.lookup keyhash pool of
                       Nothing -> Map.insert keyhash (getField @"_poolDeposit" pp) pool
-                      Just _ -> pool
+                      Just _ -> pool  -- Should it be overwritten with the current  (getField @"_poolDeposit" pp) ?
+                                      -- things are simpler if it is not.
 
 refundPoolDeposit ::  KeyHash 'StakePool c -> PState c -> (Coin, PState c)
 refundPoolDeposit keyhash pstate = (coin,pstate{ psDeposits = newpool })

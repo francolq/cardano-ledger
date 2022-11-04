@@ -51,6 +51,7 @@ import Data.Default.Class (Default, def)
 import Data.Foldable (fold)
 import qualified Data.Map.Strict as Map
 import Data.Set (Set)
+import qualified Data.Set as Set(member)
 import Data.Typeable (Typeable)
 import qualified Data.UMap as UM
 import GHC.Generics (Generic)
@@ -113,24 +114,38 @@ instance
 
 poolReapTransition ::
   forall era.
-  HasField "_poolDeposit" (PParams era) Coin =>
+  -- HasField "_poolDeposit" (PParams era) Coin =>
   TransitionRule (ShelleyPOOLREAP era)
 poolReapTransition = do
-  TRC (pp, PoolreapState us a ds ps, e) <- judgmentContext
+  TRC (_pp, PoolreapState us a ds ps, e) <- judgmentContext
 
-  let retired :: Set (KeyHash 'StakePool (EraCrypto era))
+  let -- The set of pools retiring this epoch
+      retired :: Set (KeyHash 'StakePool (EraCrypto era))
       retired = eval (dom (psRetiring ps ▷ setSingleton e))
-      pr :: Map.Map (KeyHash 'StakePool (EraCrypto era)) Coin
-      pr = Map.fromSet (const (getField @"_poolDeposit" pp)) retired
+      -- The Map of pools (retiring this epoch) to their deposits
+      retiringDeposits :: Map.Map (KeyHash 'StakePool (EraCrypto era)) Coin
+      (retiringDeposits,remainingDeposits) = Map.partitionWithKey (\ k _ -> Set.member k retired) (psDeposits ps)
       rewardAcnts :: Map.Map (KeyHash 'StakePool (EraCrypto era)) (RewardAcnt (EraCrypto era))
       rewardAcnts = Map.map _poolRAcnt $ eval (retired ◁ psStakePoolParams ps)
       rewardAcnts_ :: Map.Map (KeyHash 'StakePool (EraCrypto era)) (RewardAcnt (EraCrypto era), Coin)
-      rewardAcnts_ = Map.intersectionWith (,) rewardAcnts pr
+      rewardAcnts_ = Map.intersectionWith (,) rewardAcnts retiringDeposits
       rewardAcnts' :: Map.Map (RewardAcnt (EraCrypto era)) Coin
       rewardAcnts' =
         Map.fromListWith (<+>)
           . Map.elems
           $ rewardAcnts_
+      {- An alternate approach
+      _foo :: Map.Map (Credential 'Staking (EraCrypto era)) Coin
+      _bar :: Map.Map (Credential 'Staking (EraCrypto era)) Coin
+      (_foo,_bar) = Map.foldlWithKey accum (mempty,mempty) (eval (retired ◁ psStakePoolParams ps))
+        where accum ans@(refund,unclaim) poolHash poolparam  =
+                case Map.lookup poolHash retiringDeposits of
+                  Nothing -> ans
+                  Just coin -> if eval (cred  ∈ dom (rewards ds))
+                                  then (Map.insertWith (<+>) cred coin refund,unclaim)
+                                  else (refund, Map.insertWith (<+>) cred coin unclaim)
+                    where cred = getRwdCred (_poolRAcnt poolparam)
+      -}
       refunds :: Map.Map (Credential 'Staking (EraCrypto era)) Coin
       mRefunds :: Map.Map (Credential 'Staking (EraCrypto era)) Coin
       (refunds, mRefunds) =
@@ -170,5 +185,6 @@ poolReapTransition = do
       ps
         { psStakePoolParams = eval (retired ⋪ psStakePoolParams ps),
           psFutureStakePoolParams = eval (retired ⋪ psFutureStakePoolParams ps),
-          psRetiring = eval (retired ⋪ psRetiring ps)
+          psRetiring = eval (retired ⋪ psRetiring ps),
+          psDeposits = remainingDeposits
         }
