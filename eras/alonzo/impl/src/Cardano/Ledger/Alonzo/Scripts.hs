@@ -58,7 +58,7 @@ import Cardano.Ledger.Binary
     byronProtVer,
     cborError,
     decodeMapByKey,
-    enforceVersionEncoding,
+    enforceEncodingVersion,
     serialize',
   )
 import Cardano.Ledger.Binary.Coders
@@ -270,7 +270,7 @@ instance Ord CostModel where
 -- NOTE: Since cost model serializations need to be independently reproduced,
 -- we use the 'canonical' serialization approach used in Byron.
 instance ToCBOR CostModel where
-  toCBOR (CostModel _ cm _) = enforceVersionEncoding byronProtVer $ toCBOR cm
+  toCBOR (CostModel _ cm _) = enforceEncodingVersion byronProtVer $ toCBOR cm
 
 -- See comment on the `ToCBOR` instance for the usage of byronProtVer
 instance SafeToHash CostModel where

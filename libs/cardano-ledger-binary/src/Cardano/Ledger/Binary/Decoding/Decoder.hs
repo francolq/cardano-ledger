@@ -17,7 +17,7 @@ module Cardano.Ledger.Binary.Decoding.Decoder
     toPlainDecoder,
     fromPlainDecoder,
     withPlainDecoder,
-    enforceVersionDecoder,
+    enforceDecoderVersion,
     DecoderError (..),
     C.ByteOffset,
     C.DecodeAction (..),
@@ -296,8 +296,8 @@ withPlainDecoder :: Decoder s a -> (C.Decoder s a -> C.Decoder s b) -> Decoder s
 withPlainDecoder vd f = Decoder $ \curVersion -> f (toPlainDecoder curVersion vd)
 
 -- | Ignore the current version of the decoder and enforce the supplied one instead.
-enforceVersionDecoder :: Version -> Decoder s a -> Decoder s a
-enforceVersionDecoder version = fromPlainDecoder . toPlainDecoder version
+enforceDecoderVersion :: Version -> Decoder s a -> Decoder s a
+enforceDecoderVersion version = fromPlainDecoder . toPlainDecoder version
 
 --------------------------------------------------------------------------------
 -- Working with current decoder version

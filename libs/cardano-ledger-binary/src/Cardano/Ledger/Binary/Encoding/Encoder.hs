@@ -14,7 +14,7 @@ module Cardano.Ledger.Binary.Encoding.Encoder
     fromPlainEncoding,
     fromPlainEncodingWithVersion,
     withCurrentEncodingVersion,
-    enforceVersionEncoding,
+    enforceEncodingVersion,
 
     -- ** Custom
     encodeVersion,
@@ -138,8 +138,8 @@ withCurrentEncodingVersion f =
   Encoding $ \version -> toPlainEncoding version $ f version
 
 -- | Ignore the current version of the encoder and enforce the supplied one instead.
-enforceVersionEncoding :: Version -> Encoding -> Encoding
-enforceVersionEncoding version encoding = fromPlainEncoding (toPlainEncoding version encoding)
+enforceEncodingVersion :: Version -> Encoding -> Encoding
+enforceEncodingVersion version encoding = fromPlainEncoding (toPlainEncoding version encoding)
 
 -- | Conditionoly choose the encoder newer or older deceder, depending on the current
 -- version. Supplied version acts as a pivot.

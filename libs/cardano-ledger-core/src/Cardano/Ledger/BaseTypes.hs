@@ -10,6 +10,7 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE ViewPatterns #-}
 
@@ -84,6 +85,8 @@ import Cardano.Ledger.Binary
     decodeRecordSum,
     encodeListLen,
     encodedSizeExpr,
+    enforceDecoderVersion,
+    enforceEncodingVersion,
     invalidKey,
   )
 import Cardano.Ledger.Binary.Version
@@ -281,13 +284,13 @@ instance
 
 -- | Serialize `BoundedRational` type in the same way `Rational` is serialized.
 boundedRationalToCBOR :: BoundedRational r => r -> Encoding
-boundedRationalToCBOR = toCBOR . unboundRational
+boundedRationalToCBOR = enforceEncodingVersion minBound . toCBOR . unboundRational
 
 -- | Deserialize `BoundedRational` type using `Rational` deserialization and
 -- fail when bounds are violated.
 boundedRationalFromCBOR :: BoundedRational r => Decoder s r
 boundedRationalFromCBOR = do
-  r <- fromCBOR
+  r <- enforceDecoderVersion minBound fromCBOR
   case boundRational r of
     Nothing ->
       cborError $ DecoderErrorCustom "BoundedRational" (Text.pack $ show r)

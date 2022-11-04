@@ -90,7 +90,7 @@ import Cardano.Ledger.Binary
     encodeNullMaybe,
     encodeRatio,
     encodeUTCTime,
-    enforceVersionDecoder,
+    enforceDecoderVersion,
     groupRecord,
     ipv4ToBytes,
     ipv6ToBytes,
@@ -143,7 +143,7 @@ ipv4ToCBOR :: IPv4 -> Encoding
 ipv4ToCBOR = encodeIPv4
 
 ipv4FromCBOR :: Decoder s IPv4
-ipv4FromCBOR = enforceVersionDecoder (natVersion @2) decodeIPv4
+ipv4FromCBOR = enforceDecoderVersion (natVersion @2) decodeIPv4
 
 getHostAddress6 :: Get HostAddress6
 getHostAddress6 = do
@@ -163,7 +163,7 @@ ipv6ToCBOR :: IPv6 -> Encoding
 ipv6ToCBOR = encodeIPv6
 
 ipv6FromCBOR :: Decoder s IPv6
-ipv6FromCBOR = enforceVersionDecoder (natVersion @2) decodeIPv6
+ipv6FromCBOR = enforceDecoderVersion (natVersion @2) decodeIPv6
 
 utcTimeToCBOR :: UTCTime -> Encoding
 utcTimeToCBOR = encodeUTCTime

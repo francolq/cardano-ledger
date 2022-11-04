@@ -113,7 +113,7 @@ import qualified Data.Text as T
 import qualified Data.Time as Time
 import qualified Data.Time.Calendar.OrdinalDate as Time
 import Data.Typeable (Typeable)
-import Data.Word (Word16, Word64, Word8)
+import Data.Word (Word16, Word32, Word64, Word8)
 import Generic.Random (genericArbitraryU)
 import System.Random.Stateful (uniformByteStringM)
 import Test.Cardano.Ledger.Binary.Arbitrary (QC (..))
@@ -172,8 +172,8 @@ instance Mock c => Arbitrary (BHeader c) where
   arbitrary = do
     prevHash <- arbitrary :: Gen (HashHeader c)
     allPoolKeys <- elements (map snd (coreNodeKeys defaultConstants))
-    curSlotNo <- SlotNo <$> choose (0, 10)
-    curBlockNo <- BlockNo <$> choose (0, 100)
+    curSlotNo <- arbitrary
+    curBlockNo <- arbitrary
     epochNonce <- arbitrary :: Gen Nonce
     bodySize <- arbitrary
     bodyHash <- arbitrary
@@ -358,8 +358,10 @@ instance Arbitrary CertIx where
   arbitrary = mkCertIxPartial . toInteger <$> (arbitrary :: Gen Word16)
 
 instance Arbitrary Ptr where
-  arbitrary = genericArbitraryU
-  shrink = genericShrink
+  arbitrary = Ptr <$> genSlotNo <*> arbitrary <*> arbitrary
+    where
+      -- We are only allowing 32bit large slot numbers in Ptrs
+      genSlotNo = SlotNo . (fromIntegral :: Word32 -> Word64) <$> arbitrary
 
 instance CC.Crypto c => Arbitrary (RewardAcnt c) where
   arbitrary = RewardAcnt <$> arbitrary <*> arbitrary

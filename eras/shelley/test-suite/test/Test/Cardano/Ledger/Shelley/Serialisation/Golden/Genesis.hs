@@ -40,7 +40,7 @@ import qualified Data.Sequence.Strict as StrictSeq
 import qualified Data.Set as Set
 import Data.Time.Clock.POSIX (posixSecondsToUTCTime)
 import Paths_cardano_ledger_shelley_test (getDataFileName)
-import Test.Cardano.Ledger.Binary.TreeDiff
+import Test.Cardano.Ledger.Binary.TreeDiff (CBORBytes (CBORBytes), diffExpr)
 import qualified Test.Cardano.Ledger.Shelley.Examples.Cast as Cast
 import Test.Cardano.Ledger.Shelley.Utils
   ( RawSeed (..),
@@ -124,7 +124,7 @@ golden_cbor_ShelleyGenesis =
         . TkInt 1000
         . TkListLen 1
         . TkInt 0
-        . TkInt 0
+        . TkInt 2
         . TkInt 0
         . TkInt 0
         . TkInt 0
