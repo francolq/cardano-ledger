@@ -51,7 +51,7 @@ import Data.Default.Class (Default, def)
 import Data.Foldable (fold)
 import qualified Data.Map.Strict as Map
 import Data.Set (Set)
-import qualified Data.Set as Set(member)
+import qualified Data.Set as Set (member)
 import Data.Typeable (Typeable)
 import qualified Data.UMap as UM
 import GHC.Generics (Generic)
@@ -124,7 +124,7 @@ poolReapTransition = do
       retired = eval (dom (psRetiring ps ▷ setSingleton e))
       -- The Map of pools (retiring this epoch) to their deposits
       retiringDeposits :: Map.Map (KeyHash 'StakePool (EraCrypto era)) Coin
-      (retiringDeposits,remainingDeposits) = Map.partitionWithKey (\ k _ -> Set.member k retired) (psDeposits ps)
+      (retiringDeposits, remainingDeposits) = Map.partitionWithKey (\k _ -> Set.member k retired) (psDeposits ps)
       rewardAcnts :: Map.Map (KeyHash 'StakePool (EraCrypto era)) (RewardAcnt (EraCrypto era))
       rewardAcnts = Map.map _poolRAcnt $ eval (retired ◁ psStakePoolParams ps)
       rewardAcnts_ :: Map.Map (KeyHash 'StakePool (EraCrypto era)) (RewardAcnt (EraCrypto era), Coin)

@@ -57,7 +57,7 @@ module Cardano.Ledger.Shelley.LedgerState
     payPoolDeposit,
     refundKeyDeposit,
     refundPoolDeposit,
-    
+
     -- * Epoch boundary
     incrementalStakeDistr,
     updateStakeDistribution,

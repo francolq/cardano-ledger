@@ -944,7 +944,8 @@ poolRetirement ::
     EraSegWits era,
     ShelleyEraTxBody era,
     HasField "_eMax" (PParams era) EpochNo,
-    HasField "_minPoolCost" (PParams era) Coin
+    HasField "_minPoolCost" (PParams era) Coin,
+    HasField "_poolDeposit" (PParams era) Coin
   ) =>
   SourceSignalTarget (CHAIN era) ->
   Property
@@ -964,7 +965,8 @@ poolRegistration ::
     EraSegWits era,
     ShelleyEraTxBody era,
     HasField "_eMax" (PParams era) EpochNo,
-    HasField "_minPoolCost" (PParams era) Coin
+    HasField "_minPoolCost" (PParams era) Coin,
+    HasField "_poolDeposit" (PParams era) Coin
   ) =>
   SourceSignalTarget (CHAIN era) ->
   Property
@@ -981,7 +983,8 @@ poolStateIsInternallyConsistent ::
     EraSegWits era,
     ShelleyEraTxBody era,
     HasField "_eMax" (PParams era) EpochNo,
-    HasField "_minPoolCost" (PParams era) Coin
+    HasField "_minPoolCost" (PParams era) Coin,
+    HasField "_poolDeposit" (PParams era) Coin
   ) =>
   SourceSignalTarget (CHAIN era) ->
   Property
@@ -1081,7 +1084,8 @@ poolTraceFromBlock ::
     ShelleyEraTxBody era,
     EraSegWits era,
     HasField "_eMax" (PParams era) EpochNo,
-    HasField "_minPoolCost" (PParams era) Coin
+    HasField "_minPoolCost" (PParams era) Coin,
+    HasField "_poolDeposit" (PParams era) Coin
   ) =>
   ChainState era ->
   Block (BHeader (EraCrypto era)) era ->
@@ -1109,7 +1113,8 @@ delegTraceFromBlock ::
   forall era.
   ( ChainProperty era,
     ShelleyEraTxBody era,
-    EraSegWits era
+    EraSegWits era,
+    HasField "_keyDeposit" (PParams era) Coin
   ) =>
   ChainState era ->
   Block (BHeader (EraCrypto era)) era ->
@@ -1342,7 +1347,7 @@ stakeDistr u ds ps =
     rewards' = rewards ds
     delegs = delegations ds
     ptrs' = ptrsMap ds
-    PState poolParams _ _ = ps
+    PState {psStakePoolParams = poolParams} = ps
     stakeRelation :: Map (Credential 'Staking (EraCrypto era)) Coin
     stakeRelation = aggregateUtxoCoinByCredential ptrs' u (UM.unUnify rewards')
     activeDelegs :: ViewMap (EraCrypto era) (Credential 'Staking (EraCrypto era)) (KeyHash 'StakePool (EraCrypto era))

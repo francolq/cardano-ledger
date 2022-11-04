@@ -460,6 +460,7 @@ instance CC.Crypto c => Arbitrary (DState c) where
       <*> arbitrary
       <*> arbitrary
       <*> arbitrary
+      <*> arbitrary
 
 instance CC.Crypto c => Arbitrary (DelegCert c) where
   arbitrary = genericArbitraryU

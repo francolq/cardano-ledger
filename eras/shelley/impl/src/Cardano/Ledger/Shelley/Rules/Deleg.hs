@@ -46,9 +46,9 @@ import Cardano.Ledger.Shelley.LedgerState
     dsFutureGenDelegs,
     dsGenDelegs,
     dsIRewards,
-    rewards,
     payKeyDeposit,
     refundKeyDeposit,
+    rewards,
   )
 import Cardano.Ledger.Shelley.TxBody
   ( DCert (..),
@@ -289,7 +289,7 @@ delegationTransition = do
           u1 = Set.singleton hk UM.⋪ Rewards u0
           u2 = Set.singleton hk UM.⋪ Delegations u1
           u3 = Ptrs u2 UM.⋫ Set.singleton hk
-          (_doSomethingWithMeSomeday,newDState) = refundKeyDeposit hk (ds {dsUnified = u3})
+          (_doSomethingWithMeSomeday, newDState) = refundKeyDeposit hk (ds {dsUnified = u3})
       pure newDState
     DCertDeleg (Delegate (Delegation hk dpool)) -> do
       -- note that pattern match is used instead of cwitness and dpool, as in the spec

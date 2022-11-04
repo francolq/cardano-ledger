@@ -3,8 +3,8 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 module Cardano.Ledger.Shelley.LedgerState.DPState
@@ -32,6 +32,7 @@ import Cardano.Ledger.Coin
   ( Coin (..),
     DeltaCoin (..),
   )
+import Cardano.Ledger.Core (EraCrypto, PParams)
 import Cardano.Ledger.Credential (Credential (..), Ptr)
 import qualified Cardano.Ledger.Crypto as CC (Crypto)
 import Cardano.Ledger.Keys
@@ -60,10 +61,9 @@ import qualified Data.Map.Strict as Map
 import Data.Sharing
 import qualified Data.UMap as UM
 import GHC.Generics (Generic)
+import GHC.Records (HasField (..))
 import Lens.Micro (_1, _2)
 import NoThunks.Class (NoThunks (..))
-import Cardano.Ledger.Core(PParams,EraCrypto)
-import GHC.Records (HasField (..))
 
 -- ======================================
 
@@ -266,52 +266,55 @@ delegations (DState unified _ _ _ _) = Delegations unified
 ptrsMap :: DState c -> Map Ptr (Credential 'Staking c)
 ptrsMap (DState (UnifiedMap _ ptrmap) _ _ _ _) = ptrmap
 
-
 -- ==========================================================
 -- Functions that handle Deposits for stake credetials and key hashes.
-
 
 -- | One only pays a deposit on the initial key registration. If the key has been
 --   de-registered it should have been removed from the map. If it hasn't been
 --   de-registered, then it has no effect on the Deposits. In places where this function
 --   is called, there should be an explicit check that the credential is not in the map.
-payKeyDeposit :: HasField "_keyDeposit" (PParams era) Coin =>
-   Credential 'Staking (EraCrypto era) ->
-   PParams era ->
-   DState (EraCrypto era) ->
-   DState (EraCrypto era)
+payKeyDeposit ::
+  HasField "_keyDeposit" (PParams era) Coin =>
+  Credential 'Staking (EraCrypto era) ->
+  PParams era ->
+  DState (EraCrypto era) ->
+  DState (EraCrypto era)
 payKeyDeposit cred pp dstate = dstate {dsDeposits = newStake}
-  where stake = dsDeposits dstate
-        newStake = case Map.lookup cred stake of
-                      Nothing -> Map.insert cred (getField @"_keyDeposit" pp) stake
-                      Just _ -> stake
+  where
+    stake = dsDeposits dstate
+    newStake = case Map.lookup cred stake of
+      Nothing -> Map.insert cred (getField @"_keyDeposit" pp) stake
+      Just _ -> stake
 
 refundKeyDeposit :: Credential 'Staking c -> DState c -> (Coin, DState c)
-refundKeyDeposit cred dstate = (coin,dstate{dsDeposits = newStake})
-  where stake = dsDeposits dstate
-        (coin,newStake) = case Map.lookup cred stake of
-           Just c -> (c,Map.delete cred stake)
-           Nothing -> (mempty,stake)
-
+refundKeyDeposit cred dstate = (coin, dstate {dsDeposits = newStake})
+  where
+    stake = dsDeposits dstate
+    (coin, newStake) = case Map.lookup cred stake of
+      Just c -> (c, Map.delete cred stake)
+      Nothing -> (mempty, stake)
 
 -- | One only pays a deposit on the initial pool registration. So return the
 --   the Deposits unchanged if the keyhash already exists. There are legal
 --   situations where a pool may be registered multiple times.
-payPoolDeposit :: HasField "_poolDeposit" (PParams era) Coin =>
-   KeyHash 'StakePool (EraCrypto era) ->
-   PParams era ->
-   PState (EraCrypto era) ->
-   PState (EraCrypto era)
-payPoolDeposit keyhash pp pstate = pstate{ psDeposits = newpool }
-  where pool = psDeposits pstate
-        newpool = case Map.lookup keyhash pool of
-                      Nothing -> Map.insert keyhash (getField @"_poolDeposit" pp) pool
-                      Just _ -> pool  -- Should it be overwritten with the current  (getField @"_poolDeposit" pp) ?
-                                      -- things are simpler if it is not.
+payPoolDeposit ::
+  HasField "_poolDeposit" (PParams era) Coin =>
+  KeyHash 'StakePool (EraCrypto era) ->
+  PParams era ->
+  PState (EraCrypto era) ->
+  PState (EraCrypto era)
+payPoolDeposit keyhash pp pstate = pstate {psDeposits = newpool}
+  where
+    pool = psDeposits pstate
+    newpool = case Map.lookup keyhash pool of
+      Nothing -> Map.insert keyhash (getField @"_poolDeposit" pp) pool
+      Just _ -> pool -- Should it be overwritten with the current  (getField @"_poolDeposit" pp) ?
+      -- things are simpler if it is not.
 
-refundPoolDeposit ::  KeyHash 'StakePool c -> PState c -> (Coin, PState c)
-refundPoolDeposit keyhash pstate = (coin,pstate{ psDeposits = newpool })
-  where pool = psDeposits pstate
-        (coin,newpool) = case Map.lookup keyhash pool of
-             Just c -> (c,Map.delete keyhash pool)
-             Nothing -> (mempty,pool)
+refundPoolDeposit :: KeyHash 'StakePool c -> PState c -> (Coin, PState c)
+refundPoolDeposit keyhash pstate = (coin, pstate {psDeposits = newpool})
+  where
+    pool = psDeposits pstate
+    (coin, newpool) = case Map.lookup keyhash pool of
+      Just c -> (c, Map.delete keyhash pool)
+      Nothing -> (mempty, pool)

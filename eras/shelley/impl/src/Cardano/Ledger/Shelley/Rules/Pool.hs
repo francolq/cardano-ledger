@@ -42,7 +42,7 @@ import qualified Cardano.Ledger.Crypto as CC (Crypto (HASH))
 import Cardano.Ledger.Keys (KeyHash (..), KeyRole (..))
 import Cardano.Ledger.Shelley.Era (ShelleyPOOL)
 import qualified Cardano.Ledger.Shelley.HardForks as HardForks
-import Cardano.Ledger.Shelley.LedgerState (PState (..),payPoolDeposit)
+import Cardano.Ledger.Shelley.LedgerState (PState (..), payPoolDeposit)
 import qualified Cardano.Ledger.Shelley.SoftForks as SoftForks
 import Cardano.Ledger.Shelley.TxBody
   ( DCert (..),
@@ -216,10 +216,11 @@ poolDelegationTransition = do
         then do
           -- register new, Pool-Reg
           tellEvent $ RegisterPool hk
-          pure $ payPoolDeposit hk pp $
-            ps
-              { psStakePoolParams = eval (psStakePoolParams ps ∪ singleton hk poolParam)
-              }
+          pure $
+            payPoolDeposit hk pp $
+              ps
+                { psStakePoolParams = eval (psStakePoolParams ps ∪ singleton hk poolParam)
+                }
         else do
           tellEvent $ ReregisterPool hk
           -- hk is already registered, so we want to reregister it. That means adding it to the
@@ -228,8 +229,8 @@ poolDelegationTransition = do
           -- not change. One pays the deposit just once and it does not change if it is reregistered and not yet retired.
           -- Once fully retired (i.e. it's deposit has been refunded). It needs to pay the current deposit amount.
           -- The consequence of all this is that the deposit remains as it was.
-          pure $  
-            ps    
+          pure $
+            ps
               { psFutureStakePoolParams = eval (psFutureStakePoolParams ps ⨃ singleton hk poolParam),
                 psRetiring = eval (setSingleton hk ⋪ psRetiring ps)
               }

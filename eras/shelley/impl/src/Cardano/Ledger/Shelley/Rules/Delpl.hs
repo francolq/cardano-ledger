@@ -28,6 +28,7 @@ import Cardano.Binary
     encodeListLen,
   )
 import Cardano.Ledger.BaseTypes (ProtVer, ShelleyBase, invalidKey)
+import Cardano.Ledger.Coin (Coin)
 import Cardano.Ledger.Core
 import Cardano.Ledger.Serialization (decodeRecordSum)
 import Cardano.Ledger.Shelley.Era (ShelleyDELPL)
@@ -49,7 +50,6 @@ import Cardano.Ledger.Shelley.TxBody
     Ptr,
   )
 import Cardano.Ledger.Slot (SlotNo)
-import Cardano.Ledger.Coin(Coin)
 import Control.State.Transition
 import Data.Typeable (Typeable)
 import Data.Word (Word8)
