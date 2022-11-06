@@ -1,6 +1,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TypeApplications #-}
+{-# OPTIONS_GHC -Wno-redundant-constraints #-}
 
 module Cardano.Ledger.Shelley.HardForks
   ( aggregatedRewards,
@@ -42,7 +43,7 @@ validatePoolRewardAccountNetID ::
   (HasField "_protocolVersion" pp ProtVer) =>
   pp ->
   Bool
-validatePoolRewardAccountNetID pp = pvMajor (getField @"_protocolVersion" pp) > 4
+validatePoolRewardAccountNetID _ = True
 
 -- | Starting with protocol version 5, Stake Credentials bound by scripts
 -- will be eligibile for staking rewards.
