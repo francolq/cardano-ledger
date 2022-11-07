@@ -47,6 +47,7 @@ import Cardano.Ledger.Binary
     ipv4ToBytes,
     serialize',
     shelleyProtVer,
+    byronProtVer,
     toCBOR,
     toPlainEncoding,
   )
@@ -439,15 +440,25 @@ tests =
   testGroup
     "CBOR Serialization Tests (Encoding)"
     [ checkEncodingCBOR
-        shelleyProtVer
-        "list"
+        byronProtVer
+        "list (Byron)"
         ([1] :: [Integer])
         (T (TkListBegin . TkInteger 1 . TkBreak)),
       checkEncodingCBOR
         shelleyProtVer
-        "set"
+        "list (Shelley)"
+        ([1] :: [Integer])
+        (T (TkListLen 1 . TkInteger 1)),
+      checkEncodingCBOR
+        byronProtVer
+        "set (Byron)"
         (Set.singleton (1 :: Integer))
         (T (TkTag 258 . TkListLen 1 . TkInteger 1)),
+      checkEncodingCBOR
+        shelleyProtVer
+        "set (Shelley)"
+        (Set.singleton (1 :: Integer))
+        (T (TkListLen 1 . TkInteger 1)),
       checkEncodingCBOR
         shelleyProtVer
         "map"

@@ -390,7 +390,7 @@ decodeRationalWithTag = do
   (numValues, values) <- decodeCollectionWithLen decodeListLenOrIndef decodeInteger
   case values of
     [n, d] -> do
-      when (d <= 0) (fail "Denominator must be positive")
+      when (d == 0) (fail "Denominator cannot be zero")
       pure $! n % d
     _ -> cborError $ DecoderErrorSizeMismatch "Rational" 2 numValues
 
