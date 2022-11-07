@@ -35,7 +35,7 @@ allowMIRTransfer ::
   (HasField "_protocolVersion" pp ProtVer) =>
   pp ->
   Bool
-allowMIRTransfer pp = pvMajor (getField @"_protocolVersion" pp) > 4
+allowMIRTransfer _ = True
 
 -- | Starting with protocol version 5, we will validate the network ID
 -- for the reward account listed in stake pool registration certificates.
