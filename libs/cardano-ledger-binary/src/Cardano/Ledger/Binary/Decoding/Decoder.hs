@@ -42,7 +42,7 @@ module Cardano.Ledger.Binary.Decoding.Decoder
     -- ** Custom decoders
     decodeVersion,
     decodeRational,
-    decodeFraction,
+    decodeRationalWithTag,
     decodeRecordNamed,
     decodeRecordNamedT,
     decodeRecordSum,
@@ -235,7 +235,7 @@ import Data.Functor.Compose (Compose (..))
 import Data.IP (IPv4, IPv6, fromHostAddress, fromHostAddress6)
 import Data.Int (Int16, Int32, Int64, Int8)
 import qualified Data.Map.Strict as Map
-import Data.Ratio (Ratio, (%))
+import Data.Ratio ((%))
 import qualified Data.Sequence as Seq
 import qualified Data.Sequence.Strict as SSeq
 import qualified Data.Set as Set
@@ -361,53 +361,37 @@ decodeVersion = decodeWord64 >>= mkVersion64
 
 -- | `Decoder` for `Rational`. Versions variance:
 --
--- * [>= 8] - Allows variable as well as exact list length encoding. Enforces
+-- * [>= 9] - Allows variable as well as exact list length encoding. Enforces
 --   tag 30 and ensures that the denominator cannot be negative
---
--- * [>= 2] - Allows variable as well as exact list length encoding. Also
---   enforces special set tag 30
 --
 -- * [< 2] - Expects exact list length encoding.
 decodeRational :: Decoder s Rational
 decodeRational =
   ifDecoderVersionAtLeast
-    (natVersion @8)
-    decodeRationalV8
-    ( ifDecoderVersionAtLeast
-        (natVersion @2)
-        (decodeFraction decodeInteger)
-        ( do
-            enforceSize "Rational" 2
-            n <- decodeInteger
-            d <- decodeInteger
-            if d <= 0
-              then cborError $ DecoderErrorCustom "Rational" "invalid denominator"
-              else return $! n % d
-        )
-    )
+    (natVersion @9)
+    decodeRationalWithTag
+    decodeRationalFixedSizeTuple
+  where
+    decodeRationalFixedSizeTuple = do
+      enforceSize "Rational" 2
+      n <- decodeInteger
+      d <- decodeInteger
+      if d <= 0
+        then cborError $ DecoderErrorCustom "Rational" "invalid denominator"
+        else return $! n % d
 
--- | /Warning/ - This function is susceptible to overflows for anything other than
--- `Rational`
-decodeFraction :: Integral a => Decoder s a -> Decoder s (Ratio a)
-decodeFraction decoder = do
-  t <- decodeTag
-  unless (t == 30) $ cborError $ DecoderErrorCustom "rational" "expected tag 30"
-  (numValues, values) <- decodeCollectionWithLen decodeListLenOrIndef decoder
-  case values of
-    [n, d] -> do
-      when (d == 0) (fail "denominator cannot be 0")
-      pure $ n % d
-    _ -> cborError $ DecoderErrorSizeMismatch "rational" 2 numValues
-{-# DEPRECATED decodeFraction "In favor of `decodeRational`" #-}
-
-decodeRationalV8 :: Decoder s Rational
-decodeRationalV8 = do
+-- | Enforces tag 30 to indicate a rational number, as per tag assignment:
+-- <https://www.iana.org/assignments/cbor-tags/cbor-tags.xhtml>
+--
+-- <https://peteroupc.github.io/CBOR/rational.html>
+decodeRationalWithTag :: Decoder s Rational
+decodeRationalWithTag = do
   assertTag 30
   (numValues, values) <- decodeCollectionWithLen decodeListLenOrIndef decodeInteger
   case values of
     [n, d] -> do
       when (d <= 0) (fail "Denominator must be positive")
-      pure $ n % d
+      pure $! n % d
     _ -> cborError $ DecoderErrorSizeMismatch "Rational" 2 numValues
 
 --------------------------------------------------------------------------------
@@ -663,6 +647,8 @@ decodeVMap decodeKey decodeValue = decodeIsListByKey decodeKey (const decodeValu
 -- https://www.iana.org/assignments/cbor-tags/cbor-tags.xhtml Currently `258` is
 -- the first unassigned tag and as it requires 2 bytes to be encoded, it sounds
 -- like the best fit.
+--
+-- <https://github.com/input-output-hk/cbor-sets-spec/blob/master/CBOR_SETS.md>
 setTag :: Word
 setTag = 258
 
@@ -876,7 +862,7 @@ decodeIPv4 :: Decoder s IPv4
 decodeIPv4 =
   fromHostAddress
     <$> ifDecoderVersionAtLeast
-      (natVersion @8)
+      (natVersion @9)
       (binaryGetDecoder False "decodeIPv4" getWord32le)
       (binaryGetDecoder True "decodeIPv4" getWord32le)
 
@@ -892,7 +878,7 @@ decodeIPv6 :: Decoder s IPv6
 decodeIPv6 =
   fromHostAddress6
     <$> ifDecoderVersionAtLeast
-      (natVersion @8)
+      (natVersion @9)
       (binaryGetDecoder False "decodeIPv6" getHostAddress6)
       (binaryGetDecoder True "decodeIPv6" getHostAddress6)
 

@@ -46,8 +46,8 @@ newtype Version = Version Word64
 -- | Minimum supported version
 type MinVersion = 1
 
--- | Maximum supported version
-type MaxVersion = 8
+-- | Maximum supported version. This is the protocol version of the next upcoming era
+type MaxVersion = 9
 
 instance Bounded Version where
   minBound = Version (fromInteger (natVal (Proxy @MinVersion)))

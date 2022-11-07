@@ -6,7 +6,7 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
-{-# OPTIONS_GHC -fno-warn-deprecations #-}
+{-# OPTIONS_GHC -Wno-deprecations #-}
 
 module Cardano.Ledger.Serialization
   {-# DEPRECATED "Use `Cardano.Ledger.Binary` from 'cardano-ledger-binary' package instead" #-}
@@ -63,13 +63,15 @@ where
 import Cardano.Ledger.Binary
   ( CBORGroup (..),
     Decoder,
+    DecoderError (..),
     Encoding,
     FromCBOR (..),
     FromCBORGroup (..),
     Sized (..),
     ToCBOR (..),
     ToCBORGroup (..),
-    decodeFraction,
+    assertTag,
+    cborError,
     decodeIPv4,
     decodeIPv6,
     decodeList,
@@ -107,6 +109,7 @@ import Cardano.Ledger.Binary.Coders
     decodeRecordNamedT,
     decodeRecordSum,
   )
+import Control.Monad (when)
 import Data.Binary.Get (Get, getWord32le, runGetOrFail)
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BSL
@@ -117,7 +120,7 @@ import Data.IP
     fromHostAddress6,
   )
 import Data.Map.Strict (Map)
-import Data.Ratio (Ratio)
+import Data.Ratio (Ratio, (%))
 import Data.Time (UTCTime (..))
 import Network.Socket (HostAddress6)
 
@@ -132,6 +135,16 @@ ratioToCBOR = encodeRatio toCBOR
 
 ratioFromCBOR :: (Integral a, FromCBOR a) => Decoder s (Ratio a)
 ratioFromCBOR = decodeFraction fromCBOR
+
+decodeFraction :: Integral a => Decoder s a -> Decoder s (Ratio a)
+decodeFraction decoder = do
+  assertTag 30
+  values <- decodeList decoder
+  case values of
+    [n, d] -> do
+      when (d == 0) (fail "Denominator cannot be 0")
+      pure $! n % d
+    _ -> cborError $ DecoderErrorSizeMismatch "Rational" 2 (length values)
 
 ipv4FromBytes :: BS.ByteString -> Either String IPv4
 ipv4FromBytes b =

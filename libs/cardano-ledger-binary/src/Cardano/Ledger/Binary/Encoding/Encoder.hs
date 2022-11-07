@@ -23,6 +23,7 @@ module Cardano.Ledger.Binary.Encoding.Encoder
     encodePair,
     encodeTuple,
     encodeRatio,
+    encodeRatioWithTag,
 
     -- *** Containers
     encodeList,
@@ -271,7 +272,21 @@ encodeVersion = encodeWord64 . getVersion64
 
 encodeRatio :: (t -> Encoding) -> Ratio t -> Encoding
 encodeRatio encodeNumeric r =
-  ifEncodingVersionAtLeast (natVersion @2) (encodeTag 30) mempty
+  ifEncodingVersionAtLeast
+    (natVersion @9)
+    (encodeRatioWithTag encodeNumeric r)
+    ( encodeListLen 2
+        <> encodeNumeric (numerator r)
+        <> encodeNumeric (denominator r)
+    )
+
+-- | Encode a rational number with tag 30, as per tag assignment:
+-- <https://www.iana.org/assignments/cbor-tags/cbor-tags.xhtml>
+--
+-- <https://peteroupc.github.io/CBOR/rational.html>
+encodeRatioWithTag :: (t -> Encoding) -> Ratio t -> Encoding
+encodeRatioWithTag encodeNumeric r =
+  encodeTag 30
     <> encodeListLen 2
     <> encodeNumeric (numerator r)
     <> encodeNumeric (denominator r)
@@ -303,12 +318,10 @@ encodePair :: (a -> Encoding) -> (b -> Encoding) -> (a, b) -> Encoding
 encodePair = encodeTuple
 {-# DEPRECATED encodePair "In favor of `encodeTuple`" #-}
 
-
 -- | Encode any Foldable with indefinite list length encoding
 encodeFoldableAsIndefinite :: Foldable f => (a -> Encoding) -> f a -> Encoding
 encodeFoldableAsIndefinite encodeValue xs =
   encodeListLenIndef <> foldr (\x r -> encodeValue x <> r) encodeBreak xs
-
 
 -- | Encode any Foldable with the variable list length encoding, which will use indefinite
 -- encoding over 23 elements and definite otherwise.

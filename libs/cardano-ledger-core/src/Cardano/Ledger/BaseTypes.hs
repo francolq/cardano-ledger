@@ -31,8 +31,6 @@ module Cardano.Ledger.BaseTypes
     PositiveInterval,
     NonNegativeInterval,
     BoundedRational (..),
-    boundedRationalFromCBOR,
-    boundedRationalToCBOR,
     fpPrecision,
     promoteRatio,
     invalidKey,
@@ -76,17 +74,16 @@ import Cardano.Ledger.Binary
   ( CBORGroup (..),
     Decoder,
     DecoderError (..),
-    Encoding,
     FromCBOR (fromCBOR),
     FromCBORGroup (..),
     ToCBOR (toCBOR),
     ToCBORGroup (..),
     cborError,
+    decodeRationalWithTag,
     decodeRecordSum,
     encodeListLen,
+    encodeRatioWithTag,
     encodedSizeExpr,
-    enforceDecoderVersion,
-    enforceEncodingVersion,
     invalidKey,
   )
 import Cardano.Ledger.Binary.Version
@@ -264,37 +261,18 @@ fromRatioBoundedRatio ratio
     upperBound = maxBound :: BoundedRatio b a
 
 instance (ToCBOR a, Integral a, Bounded a, Typeable b) => ToCBOR (BoundedRatio b a) where
-  toCBOR (BoundedRatio u) = toCBOR u
+  toCBOR (BoundedRatio u) = encodeRatioWithTag toCBOR u
 
 instance
   (FromCBOR a, Bounded (BoundedRatio b a), Bounded a, Integral a, Typeable b, Show a) =>
   FromCBOR (BoundedRatio b a)
   where
   fromCBOR = do
-    r <- fromCBOR
+    r <- decodeRationalWithTag
     case fromRationalBoundedRatio r of
       Nothing ->
         cborError $ DecoderErrorCustom "BoundedRatio" (Text.pack $ show r)
       Just u -> pure u
-
--- TODO: Remove `boundedRationalToCBOR`/`boundedRationalFromCBOR` in favor of
--- serialization through `ToCBOR`/`FromCBOR` that relies on the @Tag 30@. This
--- is a backwards incompatible change and must be done when breaking
--- serialization changes can be introduced.
-
--- | Serialize `BoundedRational` type in the same way `Rational` is serialized.
-boundedRationalToCBOR :: BoundedRational r => r -> Encoding
-boundedRationalToCBOR = enforceEncodingVersion minBound . toCBOR . unboundRational
-
--- | Deserialize `BoundedRational` type using `Rational` deserialization and
--- fail when bounds are violated.
-boundedRationalFromCBOR :: BoundedRational r => Decoder s r
-boundedRationalFromCBOR = do
-  r <- enforceDecoderVersion minBound fromCBOR
-  case boundRational r of
-    Nothing ->
-      cborError $ DecoderErrorCustom "BoundedRational" (Text.pack $ show r)
-    Just u -> pure u
 
 instance ToJSON (BoundedRatio b Word64) where
   toJSON = toJSON . toScientificBoundedRatioWord64WithRounding
