@@ -51,7 +51,7 @@ allowScriptStakeCredsToEarnRewards ::
   (HasField "_protocolVersion" pp ProtVer) =>
   pp ->
   Bool
-allowScriptStakeCredsToEarnRewards pp = pvMajor (getField @"_protocolVersion" pp) > 4
+allowScriptStakeCredsToEarnRewards _ = True
 
 -- | Starting with protocol version 6, we translate slots to time correctly for
 -- Plutus scripts.
