@@ -22,7 +22,7 @@ aggregatedRewards ::
   (HasField "_protocolVersion" pp ProtVer) =>
   pp ->
   Bool
-aggregatedRewards pp = pvMajor (getField @"_protocolVersion" pp) > 2
+aggregatedRewards _ = True
 
 -- | Starting with protocol version 5, the MIR certs will also be
 -- able to transfer funds between the reserves and the treasury.
