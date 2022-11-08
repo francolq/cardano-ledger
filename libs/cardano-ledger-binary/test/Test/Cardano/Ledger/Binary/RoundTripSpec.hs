@@ -47,6 +47,7 @@ import Data.Fixed (Fixed (..), Nano, Pico)
 import Data.IP (IPv4, IPv6)
 import Data.Int
 import qualified Data.Map.Strict as Map
+import Data.Maybe
 import Data.Maybe.Strict
 import qualified Data.Primitive.ByteArray as Prim (ByteArray)
 import qualified Data.Sequence as Seq
@@ -88,7 +89,7 @@ nominalDiffTimeRoundedToSeconds :: NominalDiffTimeRounded -> Pico
 nominalDiffTimeRoundedToSeconds (NominalDiffTimeRounded ndt) = nominalDiffTimeToSeconds ndt
 
 spec :: Spec
-spec =
+spec = do
   describe "RoundTrip" $ do
     forM_ allVersions $ \version ->
       describe (show version) $ do
@@ -286,3 +287,24 @@ spec =
                )
               version
               cborTrip
+  describe "EmbedTrip" $ do
+    forM_ [shelleyProtVer .. maxBound] $ \v ->
+      describe (show v) $ do
+        embedTripSpec v v (cborTrip @(Maybe Word) @[Word]) $
+          \xs mx -> listToMaybe xs `shouldBe` mx
+        embedTripSpec v v (cborTrip @(Word, Word) @[Word]) $
+          \xs (x, y) -> xs `shouldBe` [x, y]
+        embedTripSpec v v (cborTrip @(Word, Word, Word) @[Word]) $
+          \xs (x, y, z) -> xs `shouldBe` [x, y, z]
+        embedTripSpec v v (cborTrip @(Word, Word, Word, Word) @[Word]) $
+          \xs (a, b, c, d) -> xs `shouldBe` [a, b, c, d]
+        embedTripSpec v v (cborTrip @(Word, Word, Word, Word, Word) @[Word]) $
+          \xs (a, b, c, d, e) -> xs `shouldBe` [a, b, c, d, e]
+        embedTripSpec v v (cborTrip @(Word, Word, Word, Word, Word, Word) @[Word]) $
+          \xs (a, b, c, d, e, f) -> xs `shouldBe` [a, b, c, d, e, f]
+        embedTripSpec v v (cborTrip @(Seq.Seq Word) @[Word]) $
+          \xs sxs -> Seq.fromList xs `shouldBe` sxs
+        embedTripSpec v v (cborTrip @(SSeq.StrictSeq Word) @[Word]) $
+          \xs sxs -> SSeq.fromList xs `shouldBe` sxs
+        embedTripSpec v v (cborTrip @(Map.Map Word Int) @(VMap.VMap VMap.VP VMap.VP Word Int)) $
+          \xs sxs -> VMap.toMap xs `shouldBe` sxs

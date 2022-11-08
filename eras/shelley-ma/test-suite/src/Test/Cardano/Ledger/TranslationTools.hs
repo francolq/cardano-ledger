@@ -3,60 +3,75 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 
+-- TODO: Move to cardano-ledger-core:test-lib
 module Test.Cardano.Ledger.TranslationTools
-  ( translationCompat,
-    translationCompatToCBOR,
+  ( translateEraPartial,
+    translateEraEncoding,
+    translateEraToCBOR,
     decodeTest,
     decodeTestAnn,
     expectDecodeFailure,
   )
 where
 
-import Cardano.Binary
+import Cardano.Ledger.Binary
   ( Annotator,
     DecoderError,
     Encoding,
     FromCBOR (..),
     ToCBOR (..),
+    Version,
     decodeAnnotator,
     decodeFull,
     serialize,
-    serializeEncoding,
+    serializeEncoding',
   )
-import Cardano.Ledger.Era (PreviousEra, TranslateEra (..), TranslationContext)
+import Cardano.Ledger.Core
+import Control.Monad
 import Control.Monad.Except (runExcept)
 import qualified Data.ByteString.Base16.Lazy as B16
+import GHC.Stack
+import Test.Cardano.Ledger.Binary.RoundTrip
+import Test.Cardano.Ledger.Binary.TreeDiff
 import Test.Tasty.HUnit (Assertion, assertFailure)
 
-translate ::
+translateEraPartial ::
   forall era f.
-  (TranslateEra era f, Show (TranslationError era f)) =>
+  (TranslateEra era f, Show (TranslationError era f), HasCallStack) =>
   TranslationContext era ->
   f (PreviousEra era) ->
   f era
-translate tc fe = right . runExcept $ translateEra @era tc fe
-  where
-    right = either (\x -> error $ "translation failure: " <> show x) id
+translateEraPartial tc fe =
+  case runExcept $ translateEra @era tc fe of
+    Right result -> result
+    Left err -> error $ "TranslateEra failure: " <> show err
 
 -- Tests that the serializing before translation or after translating
 -- does not change the result
-translationCompat ::
+translateEraEncoding ::
   forall era f.
-  (TranslateEra era f, Show (TranslationError era f)) =>
+  ( HasCallStack,
+    TranslateEra era f,
+    Show (TranslationError era f)
+  ) =>
   TranslationContext era ->
   (f era -> Encoding) ->
   (f (PreviousEra era) -> Encoding) ->
   f (PreviousEra era) ->
-  Bool
-translationCompat tc encodeThisEra encodePreviousEra x =
-  serializeEncoding (encodePreviousEra x)
-    == serializeEncoding (encodeThisEra $ translate @era tc x)
+  Assertion
+translateEraEncoding tc encodeThisEra encodePreviousEra x =
+  let previousEra = serializeEncoding' (eraProtVerHigh @(PreviousEra era)) (encodePreviousEra x)
+      currentEra = serializeEncoding' (eraProtVerLow @era) (encodeThisEra $ translate @era tc x)
+   in unless (previousEra == currentEra) $
+        assertFailure $
+          diffExpr (CBORBytes previousEra) (CBORBytes currentEra)
 
 -- Tests that the serializing before translation or after translating
 -- does not change the result
-translationCompatToCBOR ::
+translateEraToCBOR ::
   forall proxy era f.
-  ( TranslateEra era f,
+  ( HasCallStack,
+    TranslateEra era f,
     ToCBOR (f era),
     ToCBOR (f (PreviousEra era)),
     Show (TranslationError era f)
@@ -64,19 +79,18 @@ translationCompatToCBOR ::
   proxy era ->
   TranslationContext era ->
   f (PreviousEra era) ->
-  Bool
-translationCompatToCBOR _ tc = translationCompat @era tc toCBOR toCBOR
+  Assertion
+translateEraToCBOR _ tc = translateEraEncoding @era tc toCBOR toCBOR
 
 -- Tests that the type a can be decoded as b
 decodeTest ::
   forall a b proxy.
   (ToCBOR a, FromCBOR b) =>
+  Version ->
   proxy b ->
   a ->
   Assertion
-decodeTest _ x = case decodeFull (serialize x) :: Either DecoderError b of
-  Left e -> assertFailure $ show e
-  Right _ -> return ()
+decodeTest version _ = embedTrip version (cborTrip @a @b)
 
 -- Tests that the type a can be decoded as b
 decodeTestAnn ::

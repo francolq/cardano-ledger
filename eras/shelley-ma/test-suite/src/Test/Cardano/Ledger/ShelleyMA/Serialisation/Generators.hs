@@ -21,9 +21,7 @@ module Test.Cardano.Ledger.ShelleyMA.Serialisation.Generators
   )
 where
 
-import Cardano.Binary (Annotator, FromCBOR, ToCBOR (toCBOR))
-import Cardano.Crypto.Hash (HashAlgorithm, hashWithSerialiser)
-import qualified Cardano.Crypto.Hash as Hash
+import Cardano.Ledger.Binary (Annotator, FromCBOR, ToCBOR)
 import Cardano.Ledger.Core
 import Cardano.Ledger.Mary.Value (AssetName (..), MaryValue (..), MultiAsset (..), PolicyID (..))
 import qualified Cardano.Ledger.Mary.Value as ConcreteValue
@@ -35,7 +33,6 @@ import qualified Cardano.Ledger.ShelleyMA.Timelocks as MA (Timelock (..))
 import Cardano.Ledger.ShelleyMA.TxBody (MATxBody (..))
 import Control.State.Transition (PredicateFailure)
 import qualified Data.ByteString.Short as SBS
-import Data.Coerce (coerce)
 import Data.Int (Int64)
 import Data.Sequence.Strict (StrictSeq, fromList)
 import Data.Word (Word64)
@@ -56,15 +53,12 @@ import Test.QuickCheck
     vectorOf,
   )
 import Test.Tasty.QuickCheck (Gen)
-
+import Test.Cardano.Ledger.Shelley.Serialisation.EraIndepGenerators (mkDummyHash)
 {-------------------------------------------------------------------------------
   ShelleyMAEra Generators
   Generators used for roundtrip tests, generated values are not
   necessarily valid
 -------------------------------------------------------------------------------}
-
-mkDummyHash :: forall h a. HashAlgorithm h => Int -> Hash.Hash h a
-mkDummyHash = coerce . hashWithSerialiser @h toCBOR
 
 maxTimelockDepth :: Int
 maxTimelockDepth = 3
@@ -124,7 +118,7 @@ instance
   -- pattern, despite the pattern being COMPLETE, resulting
   -- in an unsatisfied `MonadFail` constraint.
   arbitrary =
-    genMetadata' >>= \case
+    genMetadata' @era >>= \case
       ShelleyTxAuxData m -> AllegraTxAuxData m <$> (genScriptSeq @era)
 
 genScriptSeq ::
@@ -146,7 +140,7 @@ instance
   arbitrary = genericArbitraryU
 
 instance
-  (EraTxOut era, Mock (EraCrypto era), Arbitrary (Value era), ToCBOR (PParamsUpdate era)) =>
+  (EraTxOut era, Mock (EraCrypto era), Arbitrary (Value era)) =>
   Arbitrary (MATxBody era)
   where
   arbitrary =
