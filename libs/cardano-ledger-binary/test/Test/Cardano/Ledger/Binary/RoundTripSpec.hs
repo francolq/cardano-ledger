@@ -42,17 +42,19 @@ import Cardano.Slotting.Slot (EpochNo, EpochSize, SlotNo, WithOrigin)
 import Cardano.Slotting.Time (SystemStart)
 import Codec.CBOR.ByteArray (ByteArray (..))
 import Codec.CBOR.ByteArray.Sliced (SlicedByteArray (..))
-import Control.Monad (forM_)
 import Data.Fixed (Fixed (..), Nano, Pico)
+import Data.Foldable as F
 import Data.IP (IPv4, IPv6)
 import Data.Int
 import qualified Data.Map.Strict as Map
 import Data.Maybe
 import Data.Maybe.Strict
 import qualified Data.Primitive.ByteArray as Prim (ByteArray)
+import Data.Ratio
 import qualified Data.Sequence as Seq
 import qualified Data.Sequence.Strict as SSeq
 import qualified Data.Set as Set
+import Data.Tagged (Tagged (Tagged))
 import Data.Time.Clock
   ( NominalDiffTime,
     UTCTime (..),
@@ -290,8 +292,30 @@ spec = do
   describe "EmbedTrip" $ do
     forM_ [shelleyProtVer .. maxBound] $ \v ->
       describe (show v) $ do
+        embedTripSpec v v (cborTrip @Word8 @Word16) $
+          \n w -> n `shouldBe` fromIntegral w
+        embedTripSpec v v (cborTrip @Word16 @Word32) $
+          \n w -> n `shouldBe` fromIntegral w
+        embedTripSpec v v (cborTrip @Word32 @Word64) $
+          \n w -> n `shouldBe` fromIntegral w
+        embedTripSpec v v (cborTrip @Word @Natural) $
+          \n w -> n `shouldBe` fromIntegral w
+        embedTripSpec v v (cborTrip @Int8 @Int16) $
+          \n w -> n `shouldBe` fromIntegral w
+        embedTripSpec v v (cborTrip @Int16 @Int32) $
+          \n w -> n `shouldBe` fromIntegral w
+        embedTripSpec v v (cborTrip @Int32 @Int64) $
+          \n w -> n `shouldBe` fromIntegral w
+        embedTripSpec v v (cborTrip @Int @Integer) $
+          \n w -> n `shouldBe` fromIntegral w
+        embedTripSpec v v (cborTrip @Int @(Tagged () Int)) $
+          \(Tagged i') i -> i' `shouldBe` i
         embedTripSpec v v (cborTrip @(Maybe Word) @[Word]) $
           \xs mx -> listToMaybe xs `shouldBe` mx
+        embedTripSpec v v (cborTrip @(StrictMaybe Word) @(Maybe Word)) $
+          \m sm -> m `shouldBe` strictMaybeToMaybe sm
+        embedTripSpec v v (cborTrip @(Maybe Word) @(StrictMaybe Word)) $
+          \sm m -> sm `shouldBe` maybeToStrictMaybe m
         embedTripSpec v v (cborTrip @(Word, Word) @[Word]) $
           \xs (x, y) -> xs `shouldBe` [x, y]
         embedTripSpec v v (cborTrip @(Word, Word, Word) @[Word]) $
@@ -302,9 +326,17 @@ spec = do
           \xs (a, b, c, d, e) -> xs `shouldBe` [a, b, c, d, e]
         embedTripSpec v v (cborTrip @(Word, Word, Word, Word, Word, Word) @[Word]) $
           \xs (a, b, c, d, e, f) -> xs `shouldBe` [a, b, c, d, e, f]
+        embedTripSpec v v (cborTrip @(VP.Vector Word) @[Word]) $
+          \xs sxs -> xs `shouldBe` VP.toList sxs
         embedTripSpec v v (cborTrip @(Seq.Seq Word) @[Word]) $
-          \xs sxs -> Seq.fromList xs `shouldBe` sxs
+          \xs sxs -> xs `shouldBe` F.toList sxs
         embedTripSpec v v (cborTrip @(SSeq.StrictSeq Word) @[Word]) $
-          \xs sxs -> SSeq.fromList xs `shouldBe` sxs
-        embedTripSpec v v (cborTrip @(Map.Map Word Int) @(VMap.VMap VMap.VP VMap.VP Word Int)) $
-          \xs sxs -> VMap.toMap xs `shouldBe` sxs
+          \xs sxs -> xs `shouldBe` F.toList sxs
+        embedTripSpec v v (cborTrip @(Set.Set Word) @[Word]) $
+          \xs sxs -> xs `shouldBe` Set.toList sxs
+        embedTripSpec v v (cborTrip @(VMap.VMap VMap.VP VMap.VP Word Int) @(Map.Map Word Int)) $
+          \xs sxs -> xs `shouldBe` VMap.toMap sxs
+    forM_ [minBound .. natVersion @8] $ \v ->
+      describe (show v) $ do
+        embedTripSpec v v (cborTrip @Rational @(Integer, Integer)) $
+          \(x, y) r -> (x, y) `shouldBe` (numerator r, denominator r)

@@ -15,6 +15,7 @@ module Test.Cardano.Ledger.Binary.RoundTrip
     roundTripAnnExpectation,
     embedTripSpec,
     embedTripExpectation,
+    embedTripAnnExpectation,
     RoundTripFailure (..),
     Trip (..),
     mkTrip,
@@ -66,7 +67,7 @@ embedTripSpec ::
   (b -> a -> Expectation) ->
   Spec
 embedTripSpec encVersion decVersion trip f =
-  prop ("From: " ++ show (typeRep $ Proxy @a) ++ " To " ++ show (typeRep $ Proxy @a)) $
+  prop ("From: " ++ show (typeRep $ Proxy @a) ++ " To " ++ show (typeRep $ Proxy @b)) $
     embedTripExpectation encVersion decVersion trip f
 
 -- | Verify that round triping through the binary form holds.
@@ -97,6 +98,7 @@ roundTripAnnExpectation version t =
     Right tDecoded -> tDecoded `shouldBe` t
 
 embedTripExpectation ::
+  forall a b.
   (Typeable b, HasCallStack) =>
   -- | Version for the encoder
   Version ->
@@ -110,6 +112,21 @@ embedTripExpectation encVersion decVersion trip f t =
   case embedTrip encVersion decVersion trip t of
     Left err -> expectationFailure $ "Failed to deserialize encoded: " ++ show err
     Right tDecoded -> f tDecoded t
+
+embedTripAnnExpectation ::
+  forall a b.
+  (ToCBOR a, FromCBOR (Annotator b), HasCallStack) =>
+  -- | Version for the encoder
+  Version ->
+  -- | Version for the decoder
+  Version ->
+  (b -> a -> Expectation) ->
+  a ->
+  Expectation
+embedTripAnnExpectation encVersion decVersion f a =
+  case embedTripAnn encVersion decVersion a of
+    Left err -> expectationFailure $ "Failed to deserialize encoded: " ++ show err
+    Right b -> b `f` a
 
 -- =====================================================================
 
@@ -192,25 +209,28 @@ roundTripTwiddled version x = do
   pure (roundTrip version (Trip (const (encodeTerm tw)) fromCBOR (dropCBOR (Proxy @t))) x)
 
 roundTripAnn :: (ToCBOR t, FromCBOR (Annotator t)) => Version -> t -> Either RoundTripFailure t
-roundTripAnn = embedTripAnn
+roundTripAnn v = embedTripAnn v v
 
 roundTripAnnTwiddled ::
   (Twiddle t, FromCBOR (Annotator t)) => Version -> t -> Gen (Either RoundTripFailure t)
 roundTripAnnTwiddled version x = do
   tw <- twiddle x
-  pure (decodeAnn version (encodeTerm tw))
+  pure (decodeAnn version version (encodeTerm tw))
 
 decodeAnn ::
   forall t.
   FromCBOR (Annotator t) =>
+  -- | Version for the encoder
+  Version ->
+  -- | Version for the decoder
   Version ->
   Encoding ->
   Either RoundTripFailure t
-decodeAnn version encoding =
-  first (RoundTripFailure version version encoding encodedBytes Nothing Nothing . Just) $
-    decodeFullAnnotator version (label (Proxy @(Annotator t))) fromCBOR encodedBytes
+decodeAnn encVersion decVersion encoding =
+  first (RoundTripFailure encVersion decVersion encoding encodedBytes Nothing Nothing . Just) $
+    decodeFullAnnotator decVersion (label (Proxy @(Annotator t))) fromCBOR encodedBytes
   where
-    encodedBytes = serializeEncoding version encoding
+    encodedBytes = serializeEncoding encVersion encoding
 
 embedTripLabel ::
   forall a b.
@@ -268,8 +288,13 @@ embedTrip ::
 embedTrip = embedTripLabel (Text.pack (show (typeRep $ Proxy @b)))
 
 embedTripAnn ::
-  forall a b. (ToCBOR a, FromCBOR (Annotator b)) => Version -> a -> Either RoundTripFailure b
-embedTripAnn version = decodeAnn version . toCBOR
+  forall a b.
+  (ToCBOR a, FromCBOR (Annotator b)) =>
+  Version ->
+  Version ->
+  a ->
+  Either RoundTripFailure b
+embedTripAnn encVersion decVersion = decodeAnn encVersion decVersion . toCBOR
 
 typeLabel :: forall t. Typeable t => Text.Text
 typeLabel = Text.pack (show (typeRep $ Proxy @t))

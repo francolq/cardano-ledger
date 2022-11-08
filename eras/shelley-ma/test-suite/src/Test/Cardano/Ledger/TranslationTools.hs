@@ -8,30 +8,18 @@ module Test.Cardano.Ledger.TranslationTools
   ( translateEraPartial,
     translateEraEncoding,
     translateEraToCBOR,
-    decodeTest,
-    decodeTestAnn,
-    expectDecodeFailure,
   )
 where
 
 import Cardano.Ledger.Binary
-  ( Annotator,
-    DecoderError,
-    Encoding,
-    FromCBOR (..),
+  ( Encoding,
     ToCBOR (..),
-    Version,
-    decodeAnnotator,
-    decodeFull,
-    serialize,
     serializeEncoding',
   )
 import Cardano.Ledger.Core
 import Control.Monad
 import Control.Monad.Except (runExcept)
-import qualified Data.ByteString.Base16.Lazy as B16
 import GHC.Stack
-import Test.Cardano.Ledger.Binary.RoundTrip
 import Test.Cardano.Ledger.Binary.TreeDiff
 import Test.Tasty.HUnit (Assertion, assertFailure)
 
@@ -60,8 +48,10 @@ translateEraEncoding ::
   f (PreviousEra era) ->
   Assertion
 translateEraEncoding tc encodeThisEra encodePreviousEra x =
-  let previousEra = serializeEncoding' (eraProtVerHigh @(PreviousEra era)) (encodePreviousEra x)
-      currentEra = serializeEncoding' (eraProtVerLow @era) (encodeThisEra $ translate @era tc x)
+  let previousEra =
+        serializeEncoding' (eraProtVerHigh @(PreviousEra era)) (encodePreviousEra x)
+      currentEra =
+        serializeEncoding' (eraProtVerLow @era) (encodeThisEra $ translateEraPartial @era tc x)
    in unless (previousEra == currentEra) $
         assertFailure $
           diffExpr (CBORBytes previousEra) (CBORBytes currentEra)
@@ -82,38 +72,28 @@ translateEraToCBOR ::
   Assertion
 translateEraToCBOR _ tc = translateEraEncoding @era tc toCBOR toCBOR
 
--- Tests that the type a can be decoded as b
-decodeTest ::
-  forall a b proxy.
-  (ToCBOR a, FromCBOR b) =>
-  Version ->
-  proxy b ->
-  a ->
-  Assertion
-decodeTest version _ = embedTrip version (cborTrip @a @b)
+-- -- Tests that the type a can be decoded as b
+-- decodeTestAnn ::
+--   forall a b proxy.
+--   (ToCBOR a, FromCBOR (Annotator b)) =>
+--   proxy b ->
+--   a ->
+--   Assertion
+-- decodeTestAnn _ x =
+--   let bytes = serialize x
+--       decoded = decodeAnnotator mempty fromCBOR bytes :: Either DecoderError b
+--    in case decoded of
+--         Left e ->
+--           assertFailure $
+--             "\nerror: "
+--               <> show e
+--               <> "\nbytes: "
+--               <> show (B16.encode bytes)
+--               <> "\n"
+--         Right _ -> return ()
 
--- Tests that the type a can be decoded as b
-decodeTestAnn ::
-  forall a b proxy.
-  (ToCBOR a, FromCBOR (Annotator b)) =>
-  proxy b ->
-  a ->
-  Assertion
-decodeTestAnn _ x =
-  let bytes = serialize x
-      decoded = decodeAnnotator mempty fromCBOR bytes :: Either DecoderError b
-   in case decoded of
-        Left e ->
-          assertFailure $
-            "\nerror: "
-              <> show e
-              <> "\nbytes: "
-              <> show (B16.encode bytes)
-              <> "\n"
-        Right _ -> return ()
-
--- Tests that a decoder error happens
-expectDecodeFailure :: forall a. (ToCBOR a, FromCBOR a) => a -> Assertion
-expectDecodeFailure x = case decodeFull (serialize x) :: Either DecoderError a of
-  Left _ -> pure ()
-  Right _ -> assertFailure "should not deserialize"
+-- -- Tests that a decoder error happens
+-- expectDecodeFailure :: forall a. (ToCBOR a, FromCBOR a) => a -> Assertion
+-- expectDecodeFailure x = case decodeFull (serialize x) :: Either DecoderError a of
+--   Left _ -> pure ()
+--   Right _ -> assertFailure "should not deserialize"

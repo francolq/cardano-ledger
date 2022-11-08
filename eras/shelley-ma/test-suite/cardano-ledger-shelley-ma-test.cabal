@@ -54,7 +54,6 @@ library
     Test.Cardano.Ledger.ShelleyMA.Serialisation.Roundtrip
 
   build-depends:
-    base16-bytestring,
     bytestring,
     cardano-ledger-binary:{cardano-ledger-binary, testlib},
     cardano-ledger-core,
@@ -108,6 +107,7 @@ test-suite cardano-ledger-shelley-ma-test
   build-depends:
       bytestring,
       cardano-data,
+      cardano-ledger-binary:{cardano-ledger-binary, testlib},
       cardano-ledger-core,
       cardano-ledger-shelley-ma-test,
       cardano-ledger-shelley-ma,
