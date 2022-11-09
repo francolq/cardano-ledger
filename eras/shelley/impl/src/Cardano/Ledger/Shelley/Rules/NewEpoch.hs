@@ -26,12 +26,11 @@ import Cardano.Ledger.BaseTypes
     ShelleyBase,
     StrictMaybe (SJust, SNothing),
   )
-import Cardano.Ledger.Coin (Coin (Coin), toDeltaCoin)
-import Cardano.Ledger.Compactible (fromCompact)
+import Cardano.Ledger.Coin (toDeltaCoin)
 import Cardano.Ledger.Core
 import Cardano.Ledger.Credential (Credential)
-import Cardano.Ledger.Keys (KeyHash, KeyRole (StakePool, Staking))
-import Cardano.Ledger.PoolDistr (IndividualPoolStake (..), PoolDistr (..))
+import Cardano.Ledger.Keys (KeyRole (Staking))
+import Cardano.Ledger.PoolDistr (PoolDistr (..))
 import Cardano.Ledger.Shelley.AdaPots (AdaPots, totalAdaPotsES)
 import Cardano.Ledger.Shelley.EpochBoundary
 import Cardano.Ledger.Shelley.LedgerState
@@ -39,15 +38,12 @@ import Cardano.Ledger.Shelley.Rewards (Reward, sumRewards)
 import Cardano.Ledger.Shelley.Rules.Epoch
 import Cardano.Ledger.Shelley.Rules.Mir (ShelleyMIR, ShelleyMirEvent, ShelleyMirPredFailure)
 import Cardano.Ledger.Shelley.Rules.Rupd (RupdEvent (..))
-import Cardano.Ledger.Shelley.TxBody (PoolParams (_poolVrf))
 import Cardano.Ledger.Slot (EpochNo (EpochNo))
 import qualified Cardano.Ledger.Val as Val
 import Control.State.Transition
 import Data.Default.Class (Default, def)
 import qualified Data.Map.Strict as Map
-import Data.Ratio ((%))
 import Data.Set (Set)
-import Data.VMap as VMap
 import GHC.Generics (Generic)
 import GHC.Records (HasField)
 import NoThunks.Class (NoThunks (..))
@@ -182,8 +178,13 @@ newEpochTransition = do
       es''' <- trans @(EraRule "EPOCH" era) $ TRC ((), es'', e)
       let adaPots = totalAdaPotsES es'''
       tellEvent $ TotalAdaPotsEvent adaPots
-      let ss = esSnapshots es'''
-          pd' = calculatePoolDistr (_pstakeSet ss)
+      let pd' = _pstakeMarkPoolDistr (esSnapshots es)
+            -- RUPD does not alter `esSnaphots`
+            -- MIR does not alter `esSnaphots`
+            -- SNAP rotates mark to set.
+            --
+            -- Thus: pd' = calcPoolDistr $ _pstakeSet $ esSnapshots es'''
+
       pure $
         src
           { nesEL = e,
@@ -201,28 +202,6 @@ tellReward ::
   Rule (ShelleyNEWEPOCH era) rtype ()
 tellReward (DeltaRewardEvent (RupdEvent _ m)) | Map.null m = pure ()
 tellReward x = tellEvent x
-
-calculatePoolDistr :: SnapShot crypto -> PoolDistr crypto
-calculatePoolDistr = calculatePoolDistr' (const True)
-
-calculatePoolDistr' :: forall crypto. (KeyHash 'StakePool crypto -> Bool) -> SnapShot crypto -> PoolDistr crypto
-calculatePoolDistr' includeHash (SnapShot stake delegs poolParams) =
-  let Coin total = sumAllStake stake
-      -- total could be zero (in particular when shrinking)
-      nonZeroTotal = if total == 0 then 1 else total
-      sd =
-        Map.fromListWith (+) $
-          [ (d, c % nonZeroTotal)
-            | (hk, compactCoin) <- VMap.toAscList (unStake stake),
-              let Coin c = fromCompact compactCoin,
-              Just d <- [VMap.lookup hk delegs],
-              includeHash d
-          ]
-   in PoolDistr $
-        Map.intersectionWith
-          IndividualPoolStake
-          sd
-          (toMap (VMap.map _poolVrf poolParams))
 
 instance
   ( STS (ShelleyEPOCH era),

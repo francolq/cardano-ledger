@@ -40,7 +40,7 @@ import Cardano.Ledger.Pretty
     ppWord64,
   )
 import Cardano.Ledger.SafeHash (hashAnnotated)
-import Cardano.Ledger.Shelley.EpochBoundary (SnapShots (..))
+import Cardano.Ledger.Shelley.EpochBoundary (SnapShots (..), calculatePoolDistr)
 import Cardano.Ledger.Shelley.LedgerState
   ( AccountState (..),
     DPState (..),
@@ -216,7 +216,7 @@ makeEpochState gstate ledgerstate =
 
 snaps :: EraTxOut era => LedgerState era -> SnapShots (Crypto era)
 snaps (LedgerState UTxOState {_utxo = u, _fees = f} (DPState dstate pstate)) =
-  SnapShots snap snap snap f
+  SnapShots snap (calculatePoolDistr snap) snap snap f
   where
     snap = stakeDistr u dstate pstate
 

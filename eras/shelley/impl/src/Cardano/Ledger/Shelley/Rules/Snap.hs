@@ -24,8 +24,9 @@ import Cardano.Ledger.Credential (Credential)
 import Cardano.Ledger.Era (Crypto)
 import Cardano.Ledger.Keys (KeyHash, KeyRole (StakePool, Staking))
 import Cardano.Ledger.Shelley.EpochBoundary
-  ( SnapShot (_delegations, _stake),
-    SnapShots (_feeSS, _pstakeGo, _pstakeMark, _pstakeSet),
+  ( calculatePoolDistr,
+    SnapShot (_delegations, _stake),
+    SnapShots (SnapShots, _feeSS, _pstakeGo, _pstakeMark0, _pstakeMarkPoolDistr, _pstakeSet),
     Stake (unStake),
     emptySnapShots,
   )
@@ -103,9 +104,10 @@ snapTransition = do
      in StakeDistEvent stakeMap
 
   pure $
-    s
-      { _pstakeMark = istakeSnap,
-        _pstakeSet = _pstakeMark s,
+    SnapShots
+      { _pstakeMark0 = istakeSnap,
+        _pstakeMarkPoolDistr = calculatePoolDistr istakeSnap,
+        _pstakeSet = _pstakeMark0 s,
         _pstakeGo = _pstakeSet s,
         _feeSS = fees
       }
