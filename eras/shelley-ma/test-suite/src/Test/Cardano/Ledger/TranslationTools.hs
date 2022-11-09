@@ -71,29 +71,3 @@ translateEraToCBOR ::
   f (PreviousEra era) ->
   Assertion
 translateEraToCBOR _ tc = translateEraEncoding @era tc toCBOR toCBOR
-
--- -- Tests that the type a can be decoded as b
--- decodeTestAnn ::
---   forall a b proxy.
---   (ToCBOR a, FromCBOR (Annotator b)) =>
---   proxy b ->
---   a ->
---   Assertion
--- decodeTestAnn _ x =
---   let bytes = serialize x
---       decoded = decodeAnnotator mempty fromCBOR bytes :: Either DecoderError b
---    in case decoded of
---         Left e ->
---           assertFailure $
---             "\nerror: "
---               <> show e
---               <> "\nbytes: "
---               <> show (B16.encode bytes)
---               <> "\n"
---         Right _ -> return ()
-
--- -- Tests that a decoder error happens
--- expectDecodeFailure :: forall a. (ToCBOR a, FromCBOR a) => a -> Assertion
--- expectDecodeFailure x = case decodeFull (serialize x) :: Either DecoderError a of
---   Left _ -> pure ()
---   Right _ -> assertFailure "should not deserialize"

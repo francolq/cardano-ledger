@@ -40,20 +40,20 @@ allegraTranslationTests :: TestTree
 allegraTranslationTests =
   testGroup
     "Allegra translation binary compatibiliby tests"
-    [ testProperty "Tx compatibility" (test @S.ShelleyTx),
-      testProperty "ShelleyGenesis compatibility" (test @S.ShelleyGenesis),
-      testProperty "ProposedPPUpdates compatibility" (test @S.ProposedPPUpdates),
-      testProperty "PPUPState compatibility" (test @S.PPUPState),
-      testProperty "TxOut compatibility" (test @S.ShelleyTxOut),
-      testProperty "UTxO compatibility" (test @S.UTxO),
-      testProperty "UTxOState compatibility" (test @S.UTxOState),
-      testProperty "LedgerState compatibility" (test @S.LedgerState),
-      testProperty "EpochState compatibility" (test @S.EpochState),
-      testProperty "ShelleyTxWits compatibility" (test @S.ShelleyTxWits),
-      testProperty "Update compatibility" (test @S.Update)
+    [ testProperty "Tx compatibility" (testTranslation @S.ShelleyTx),
+      testProperty "ShelleyGenesis compatibility" (testTranslation @S.ShelleyGenesis),
+      testProperty "ProposedPPUpdates compatibility" (testTranslation @S.ProposedPPUpdates),
+      testProperty "PPUPState compatibility" (testTranslation @S.PPUPState),
+      testProperty "TxOut compatibility" (testTranslation @S.ShelleyTxOut),
+      testProperty "UTxO compatibility" (testTranslation @S.UTxO),
+      testProperty "UTxOState compatibility" (testTranslation @S.UTxOState),
+      testProperty "LedgerState compatibility" (testTranslation @S.LedgerState),
+      testProperty "EpochState compatibility" (testTranslation @S.EpochState),
+      testProperty "ShelleyTxWits compatibility" (testTranslation @S.ShelleyTxWits),
+      testProperty "Update compatibility" (testTranslation @S.Update)
     ]
 
-test ::
+testTranslation ::
   forall f.
   ( ToCBOR (f Allegra),
     ToCBOR (f Shelley),
@@ -62,4 +62,4 @@ test ::
   ) =>
   f Shelley ->
   Assertion
-test = translateEraToCBOR ([] :: [Allegra]) ()
+testTranslation = translateEraToCBOR ([] :: [Allegra]) ()

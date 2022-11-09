@@ -102,7 +102,9 @@ instance
     (Annotator getT, Annotator getBytes) <- withSlice fromCBOR
     pure (Annotator (\fullbytes -> mkMemoBytes (getT fullbytes) (getBytes fullbytes)))
 
-instance Eq (MemoBytes t era) where (Memo' _ x _) == (Memo' _ y _) = x == y
+-- | Binary representation is compared, rather than the Haskell type
+instance Eq (MemoBytes t era) where
+  x == y = mbBytes x == mbBytes y
 
 instance (Show (t era), HashAlgorithm (HASH (EraCrypto era))) => Show (MemoBytes t era) where
   show (Memo' y _ h) = show y <> " (" <> hashAlgorithmName (Proxy :: Proxy (HASH (EraCrypto era))) <> ": " <> show h <> ")"

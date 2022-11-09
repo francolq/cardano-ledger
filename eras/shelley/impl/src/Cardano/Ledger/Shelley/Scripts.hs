@@ -22,7 +22,6 @@ module Cardano.Ledger.Shelley.Scripts
         RequireSignature,
         RequireMOf
       ),
-    getMultiSigBytes,
     ScriptHash (..),
     nativeMultiSigTag,
   )
@@ -51,7 +50,6 @@ import Cardano.Ledger.SafeHash (SafeToHash (..))
 import Cardano.Ledger.Shelley.Era
 import Control.DeepSeq (NFData)
 import qualified Data.ByteString as BS
-import Data.ByteString.Short (ShortByteString)
 import GHC.Generics (Generic)
 import NoThunks.Class (NoThunks (..))
 
@@ -108,9 +106,6 @@ instance CC.Crypto c => EraScript (ShelleyEra c) where
   phaseScript PhaseTwoRep _ = Nothing
 
 deriving newtype instance NFData (MultiSig era)
-
-getMultiSigBytes :: Era era => MultiSig era -> ShortByteString
-getMultiSigBytes (MultiSigConstr (Memo _ bytes)) = bytes
 
 deriving via
   Mem MultiSigRaw era

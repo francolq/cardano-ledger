@@ -11,6 +11,7 @@
 -- | Defines reusable abstractions for testing RoundTrip properties of CBOR instances
 module Test.Cardano.Ledger.Binary.RoundTrip
   ( roundTripSpec,
+    roundTripFailureExpectation,
     roundTripExpectation,
     roundTripAnnExpectation,
     embedTripSpec,
@@ -37,7 +38,7 @@ import qualified Data.ByteString.Lazy as BSL
 import Data.Proxy
 import qualified Data.Text as Text
 import Data.Typeable
-import Test.Cardano.Ledger.Binary.TreeDiff (showExpr, showHexBytesGrouped)
+import Test.Cardano.Ledger.Binary.TreeDiff (CBORBytes (..), showExpr, showHexBytesGrouped)
 import Test.Cardano.Ledger.Binary.Twiddle (Twiddle (..))
 import Test.Hspec
 import Test.Hspec.QuickCheck (prop)
@@ -69,6 +70,15 @@ embedTripSpec ::
 embedTripSpec encVersion decVersion trip f =
   prop ("From: " ++ show (typeRep $ Proxy @a) ++ " To " ++ show (typeRep $ Proxy @b)) $
     embedTripExpectation encVersion decVersion trip f
+
+-- Tests that a decoder error happens
+roundTripFailureExpectation :: forall a. (ToCBOR a, FromCBOR a) => Version -> a -> Expectation
+roundTripFailureExpectation version x =
+  case roundTrip version (cborTrip @a) x of
+    Left _ -> pure ()
+    Right _ ->
+      expectationFailure $
+        "Should not have deserialized: " ++ showExpr (CBORBytes (serialize' version x))
 
 -- | Verify that round triping through the binary form holds.
 --
