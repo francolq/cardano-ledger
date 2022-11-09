@@ -91,7 +91,7 @@ getVersion64 :: Version -> Word64
 getVersion64 (Version w64) = w64
 
 -- | Increment version by 1.
-succVersion :: Version -> Maybe Version
+succVersion :: MonadFail m => Version -> m Version
 succVersion (Version v64) = mkVersion64 (v64 + 1)
 
 allVersions :: [Version]

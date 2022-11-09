@@ -26,6 +26,7 @@ module Cardano.Ledger.Binary.Decoding.Decoder
     -- ** Versioning
     getDecoderVersion,
     ifDecoderVersionAtLeast,
+    whenDecoderVersionAtLeast,
 
     -- ** Error reporting
     cborError,
@@ -338,6 +339,17 @@ ifDecoderVersionAtLeast atLeast newerDecoder olderDecoder = do
     then newerDecoder
     else olderDecoder
 
+-- | Optionally run a decoder depending on the current version and the supplied one.
+whenDecoderVersionAtLeast ::
+  Version ->
+  -- | Run this decoder whenever current decoder version is larger or equal to the supplied
+  -- `Version`
+  Decoder s a ->
+  Decoder s ()
+whenDecoderVersionAtLeast atLeast decoder = do
+  cur <- getDecoderVersion
+  when (cur >= atLeast) (void decoder)
+
 --------------------------------------------------------------------------------
 -- Error reporting
 --------------------------------------------------------------------------------
@@ -361,15 +373,14 @@ decodeVersion = decodeWord64 >>= mkVersion64
 
 -- | `Decoder` for `Rational`. Versions variance:
 --
--- * [>= 9] - Allows variable as well as exact list length encoding. Enforces
---   tag 30 and ensures that the denominator cannot be negative
+-- * [>= 2] - Allows variable as well as exact list length encoding.
 --
--- * [< 2] - Expects exact list length encoding.
+-- * [== 1] - Expects exact list length encoding.
 decodeRational :: Decoder s Rational
 decodeRational =
   ifDecoderVersionAtLeast
-    (natVersion @9)
-    decodeRationalWithTag
+    (natVersion @2)
+    decodeRationalWithoutTag
     decodeRationalFixedSizeTuple
   where
     decodeRationalFixedSizeTuple = do
@@ -380,13 +391,40 @@ decodeRational =
         then cborError $ DecoderErrorCustom "Rational" "invalid denominator"
         else return $! n % d
 
+-- | Future `Decoder` for `Rational` type. This decoder will be applied in future and is
+-- prepared here as use case on how to do upgrades to serialization. Versions variance:
+--
+-- * [>= 10] - Enforces tag 30
+--
+-- * [>= 9] - Allows variable as well as exact list length encoding. Consumes tag 30 if
+--   one is present, but does not enforce it.
+--
+-- * [>= 2] - Allows variable as well as exact list length encoding.
+--
+-- * [== 1] - Expects exact list length encoding.
+_decodeRationalFuture :: Decoder s Rational
+_decodeRationalFuture = do
+  -- We are not using `natVersion` because these versions aren't yet supported.
+  v9 <- mkVersion 9
+  v10 <- mkVersion 10
+  ifDecoderVersionAtLeast
+    v10
+    decodeRationalWithTag
+    ( ifDecoderVersionAtLeast
+        v9
+        (allowTag 30 >> decodeRational)
+        decodeRational
+    )
+
 -- | Enforces tag 30 to indicate a rational number, as per tag assignment:
 -- <https://www.iana.org/assignments/cbor-tags/cbor-tags.xhtml>
 --
 -- <https://peteroupc.github.io/CBOR/rational.html>
 decodeRationalWithTag :: Decoder s Rational
-decodeRationalWithTag = do
-  assertTag 30
+decodeRationalWithTag = assertTag 30 >> decodeRationalWithoutTag
+
+decodeRationalWithoutTag :: Decoder s Rational
+decodeRationalWithoutTag = do
   (numValues, values) <- decodeCollectionWithLen decodeListLenOrIndef decodeInteger
   case values of
     [n, d] -> do
@@ -886,16 +924,30 @@ decodeIPv6 =
 -- Wrapped CBORG decoders
 --------------------------------------------------------------------------------
 
+decodeTagMaybe :: Decoder s (Maybe Word64)
+decodeTagMaybe =
+  peekTokenType >>= \case
+    C.TypeTag -> Just . fromIntegral <$> decodeTag
+    C.TypeTag64 -> Just <$> decodeTag64
+    _ -> pure Nothing
+
+allowTag :: Word -> Decoder s ()
+allowTag tagExpected = do
+  mTagReceived <- decodeTagMaybe
+  forM_ mTagReceived $ \tagReceived ->
+    unless (tagReceived == (fromIntegral tagExpected :: Word64)) $
+      fail $
+        "Expecteg tag " <> show tagExpected <> " but got tag " <> show tagReceived
+
 assertTag :: Word -> Decoder s ()
 assertTag tagExpected = do
   tagReceived <-
-    peekTokenType >>= \case
-      C.TypeTag -> fromIntegral <$> decodeTag
-      C.TypeTag64 -> decodeTag64
-      _ -> fail "expected tag"
+    decodeTagMaybe >>= \case
+      Just tag -> pure tag
+      Nothing -> fail "Expected tag"
   unless (tagReceived == (fromIntegral tagExpected :: Word64)) $
     fail $
-      "expecteg tag " <> show tagExpected <> " but got tag " <> show tagReceived
+      "Expecteg tag " <> show tagExpected <> " but got tag " <> show tagReceived
 
 -- | Enforces that the input size is the same as the decoded one, failing in
 --   case it's not

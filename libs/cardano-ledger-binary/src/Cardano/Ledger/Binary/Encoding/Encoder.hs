@@ -272,13 +272,16 @@ encodeVersion = encodeWord64 . getVersion64
 
 encodeRatio :: (t -> Encoding) -> Ratio t -> Encoding
 encodeRatio encodeNumeric r =
+  encodeListLen 2
+    <> encodeNumeric (numerator r)
+    <> encodeNumeric (denominator r)
+
+_encodeRatioFuture :: (t -> Encoding) -> Ratio t -> Encoding
+_encodeRatioFuture encodeNumeric r =
   ifEncodingVersionAtLeast
     (natVersion @9)
-    (encodeRatioWithTag encodeNumeric r)
-    ( encodeListLen 2
-        <> encodeNumeric (numerator r)
-        <> encodeNumeric (denominator r)
-    )
+    (encodeTag 30 <> encodeRatio encodeNumeric r)
+    (encodeRatio encodeNumeric r)
 
 -- | Encode a rational number with tag 30, as per tag assignment:
 -- <https://www.iana.org/assignments/cbor-tags/cbor-tags.xhtml>
